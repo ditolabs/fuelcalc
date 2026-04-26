@@ -208,6 +208,24 @@ input:focus{border-color:var(--accent)}
 .hc-stat span{font-family:'DM Mono',monospace;color:var(--accent)}
 
 .hidden{display:none!important}
+/* ══ INSTALL BANNER ══ */
+#installBanner{
+  position:fixed;bottom:68px;left:50%;transform:translateX(-50%);
+  background:var(--s1);border:1px solid var(--accent);border-radius:12px;
+  padding:10px 14px;font-size:12px;color:var(--txt);
+  display:none;align-items:center;gap:10px;
+  box-shadow:0 4px 24px #0004;z-index:200;
+  max-width:340px;width:calc(100% - 32px);
+}
+#installBanner button{
+  background:var(--accent);color:#000;border:none;
+  border-radius:7px;padding:6px 12px;font-size:12px;
+  font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;flex-shrink:0;
+}
+#installBanner .ib-x{
+  background:none;border:none;color:var(--mut);
+  font-size:16px;cursor:pointer;padding:0;flex-shrink:0;margin-left:auto;
+}
 </style>
 </head>
 <body>
@@ -344,7 +362,11 @@ input:focus{border-color:var(--accent)}
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Riwayat
   </button>
 </nav>
-
+<div id="installBanner">
+  <span>📲 Install BBM Tracker ke homescreen?</span>
+  <button onclick="doInstall()">Install</button>
+  <button class="ib-x" onclick="document.getElementById('installBanner').style.display='none'">✕</button>
+</div>
 <script>
 /* ════ DATA & STATE ════ */
 let FUEL=[
@@ -668,7 +690,36 @@ function hapusRiwayat(id){
   localStorage.setItem('bbm-history', JSON.stringify(h));
   renderHistory();
 }
+<script>
+	/* ════ PWA INSTALL ════ */
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Munculkan banner setelah 3 detik
+  setTimeout(() => {
+    const b = $("installBanner");
+    if(b) b.style.display = "flex";
+  }, 3000);
+});
 
+window.addEventListener("appinstalled", () => {
+  const b = $("installBanner");
+  if(b) b.style.display = "none";
+  deferredPrompt = null;
+});
+
+function doInstall() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    const b = $("installBanner");
+    if(b) b.style.display = "none";
+  });
+}
+</script>
+<script>
 /* ════ INIT ════ */
 isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
