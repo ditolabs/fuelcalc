@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#0a0a0a" id="themeColorMeta">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,87 +13,149 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ══ THEME VARS ══ */
 :root{
   --accent:#f97316;--glow:#f9731622;
+  --green:#22c55e;--yellow:#eab308;--red:#ef4444;
+  --blue:#60a5fa;--purple:#a78bfa;
+}
+[data-theme="dark"]{
   --bg:#0a0a0a;--s1:#111;--s2:#161616;
   --b1:#1e1e1e;--b2:#2a2a2a;
   --txt:#e5e5e5;--mut:#555;--fnt:#2a2a2a;
-  --green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#60a5fa;--purple:#a78bfa;
+  --card-bg:#111;--nav-bg:#111;
+  --summary-bg:#111;--ibar-bg:#111;
+  --shadow:none;
 }
+[data-theme="light"]{
+  --bg:#f5f5f5;--s1:#ffffff;--s2:#f0f0f0;
+  --b1:#e0e0e0;--b2:#d0d0d0;
+  --txt:#1a1a1a;--mut:#888;--fnt:#ccc;
+  --card-bg:#ffffff;--nav-bg:#ffffff;
+  --summary-bg:#f9f9f9;--ibar-bg:#f0f0f0;
+  --shadow:0 1px 4px #0001;
+}
+
 html,body{height:100%;overflow:hidden}
 body{
   background:var(--bg);color:var(--txt);
   font-family:'DM Sans',sans-serif;
   display:flex;flex-direction:column;
+  transition:background .25s,color .25s;
 }
 
-/* ── Layout ── */
+/* ══ PAGES ══ */
 .pages{flex:1;overflow:hidden;position:relative}
 .page{
-  position:absolute;inset:0;
-  overflow-y:auto;padding:20px 16px 16px;
-  opacity:0;pointer-events:none;
-  transition:opacity .25s;
+  position:absolute;inset:0;overflow-y:auto;
+  padding:16px 16px 24px;
+  opacity:0;pointer-events:none;transition:opacity .2s;
 }
 .page.active{opacity:1;pointer-events:auto}
 .page::-webkit-scrollbar{display:none}
 
-/* ── Nav ── */
+/* ══ NAV ══ */
 nav{
-  display:flex;background:var(--s1);
+  display:flex;background:var(--nav-bg);
   border-top:1px solid var(--b1);
   padding-bottom:env(safe-area-inset-bottom,0px);
-  flex-shrink:0;
+  flex-shrink:0;box-shadow:var(--shadow);
+  transition:background .25s,border-color .25s;
 }
 .nav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;
-  gap:4px;padding:10px 8px;background:none;border:none;
-  color:var(--mut);font-size:11px;font-family:'DM Sans',sans-serif;
+  gap:3px;padding:10px 8px;background:none;border:none;
+  color:var(--mut);font-size:10px;font-family:'DM Sans',sans-serif;
   cursor:pointer;transition:color .2s;
 }
-.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nav-btn.active{color:var(--accent)}
 
-/* ── Headings ── */
-.pg-title{
-  display:flex;align-items:center;gap:10px;margin-bottom:6px;
+/* ══ HEADER BAR ══ */
+.top-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:4px;
 }
+.pg-title{display:flex;align-items:center;gap:9px}
 .pg-icon{
-  width:36px;height:36px;border-radius:10px;
-  background:var(--glow);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
-  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;
+  width:34px;height:34px;border-radius:9px;
+  background:var(--glow);
+  border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;transition:all .3s;
 }
-.pg-title h1{font-size:20px;font-weight:600;letter-spacing:-.4px}
-.pg-sub{font-size:12px;color:var(--mut);padding-left:46px;margin-bottom:22px}
+.pg-title h1{font-size:19px;font-weight:600;letter-spacing:-.4px}
+.pg-sub{font-size:12px;color:var(--mut);padding-left:43px;margin-bottom:18px}
 
-/* ── Labels ── */
+/* ══ THEME TOGGLE ══ */
+.theme-toggle{
+  background:var(--s2);border:1px solid var(--b2);
+  border-radius:20px;padding:5px 12px;
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--mut);cursor:pointer;
+  transition:all .2s;flex-shrink:0;
+}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.theme-toggle .icon{font-size:14px;transition:transform .3s}
+
+/* ══ LABELS ══ */
 .lbl{font-size:10px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px}
-.sec{margin-bottom:18px}
+.sec{margin-bottom:16px}
 
-/* ── Pills ── */
-.pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px}
+/* ══ PILLS ══ */
+.pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
 .pills::-webkit-scrollbar{display:none}
 .pill{
-  padding:5px 13px;border-radius:20px;
+  padding:5px 12px;border-radius:20px;
   border:1px solid var(--b2);background:var(--s1);
   color:var(--mut);font-size:11px;cursor:pointer;
   transition:all .2s;font-family:'DM Sans',sans-serif;
   white-space:nowrap;flex-shrink:0;
 }
-.pill:hover{border-color:#444;color:#ccc}
-.pill.active{background:var(--s2);border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--glow)}
+.pill:hover{border-color:#888;color:var(--txt)}
+.pill.active{
+  background:var(--s2);border-color:var(--accent);
+  color:var(--accent);box-shadow:0 0 10px var(--glow);
+}
 .pills-sm .pill{font-size:10px;padding:4px 10px}
 
-/* ── Info bar ── */
+/* ══ INFO BAR ══ */
 .ibar{
-  margin-top:8px;padding:9px 13px;
-  background:var(--s1);border-radius:8px;
+  margin-top:8px;padding:9px 12px;
+  background:var(--ibar-bg);border-radius:8px;
+  border:1px solid var(--b1);
   display:flex;justify-content:space-between;align-items:center;
+  transition:background .25s,border-color .25s;
 }
 .ibar span:first-child{font-size:12px;color:var(--mut)}
 .ibar .iv{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent)}
 
-/* ── Inputs ── */
+/* ══ HARGA SECTION ══ */
+.harga-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:8px;
+}
+.harga-note{font-size:11px;color:var(--mut)}
+.harga-note a{color:var(--mut);text-decoration:underline;text-underline-offset:2px}
+.refresh-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:20px;
+  border:1px solid var(--b2);background:var(--s2);
+  color:var(--mut);font-size:11px;cursor:pointer;
+  transition:all .2s;font-family:'DM Sans',sans-serif;
+}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+.refresh-btn.loading .ri{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-msg{
+  font-size:11px;margin-top:6px;padding:6px 10px;
+  border-radius:7px;display:none;
+}
+.refresh-msg.ok{background:#052e1640;border:1px solid #16653440;color:var(--green);display:block}
+.refresh-msg.err{background:#1c0a0040;border:1px solid #7c2d1240;color:#fdba74;display:block}
+
+/* ══ INPUTS ══ */
 .irow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .ul{font-size:13px;color:var(--mut);white-space:nowrap}
 input[type=number],input[type=url]{
@@ -101,31 +163,29 @@ input[type=number],input[type=url]{
   border:1px solid var(--b2);border-radius:10px;
   padding:11px 13px;color:var(--txt);
   font-family:'DM Mono',monospace;font-size:15px;
-  outline:none;transition:border-color .2s;
+  outline:none;transition:border-color .2s,background .25s;
   -moz-appearance:textfield;
 }
-input[type=url]{font-family:'DM Sans',sans-serif;font-size:14px}
+input[type=url]{font-family:'DM Sans',sans-serif;font-size:13px}
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 input:focus{border-color:var(--accent)}
 input::placeholder{color:var(--fnt)}
 
-/* ── Maps box ── */
+/* ══ MAPS BOX ══ */
 .maps-box{
   background:var(--s1);border:1px solid var(--b2);
-  border-radius:12px;padding:13px;margin-bottom:18px;
+  border-radius:12px;padding:13px;margin-bottom:16px;
+  transition:background .25s,border-color .25s;
 }
 .maps-title{
   font-size:10px;color:var(--mut);letter-spacing:1px;
   text-transform:uppercase;margin-bottom:9px;
   display:flex;align-items:center;gap:6px;
 }
-.maps-st{
-  margin-top:9px;padding:9px 12px;border-radius:8px;
-  font-size:12px;line-height:1.5;display:none;
-}
-.maps-st.ok{background:#052e16;border:1px solid #166534;color:#86efac;display:block}
-.maps-st.err{background:#1c0a00;border:1px solid #7c2d12;color:#fdba74;display:block}
+.maps-st{margin-top:9px;padding:9px 12px;border-radius:8px;font-size:12px;line-height:1.5;display:none}
+.maps-st.ok{background:#052e1640;border:1px solid #166534;color:#86efac;display:block}
+.maps-st.err{background:#1c0a0040;border:1px solid #7c2d12;color:#fdba74;display:block}
 .maps-st.ld{background:var(--s2);border:1px solid var(--b2);color:var(--mut);display:block}
 .maps-btn{
   margin-top:8px;width:100%;padding:9px;
@@ -137,74 +197,67 @@ input::placeholder{color:var(--fnt)}
 .maps-btn:hover{background:var(--accent);color:#000}
 .maps-btn:disabled{opacity:.35;cursor:not-allowed}
 
-/* ── OR divider ── */
+/* ══ OR DIVIDER ══ */
 .or{display:flex;align-items:center;gap:10px;margin-bottom:9px;color:var(--mut);font-size:12px}
 .or::before,.or::after{content:'';flex:1;border-top:1px solid var(--b2)}
 
-/* ── Harga note ── */
-.harga-note{
-  font-size:11px;color:var(--mut);text-align:right;
-  margin-top:4px;
-}
-.harga-note a{color:var(--mut);text-decoration:underline;text-underline-offset:2px}
-
-/* ── Empty ── */
-.empty{border:1px dashed var(--b1);border-radius:14px;padding:36px 20px;text-align:center}
+/* ══ EMPTY STATE ══ */
+.empty{border:1px dashed var(--b2);border-radius:14px;padding:36px 20px;text-align:center}
 .empty .ei{font-size:28px;margin-bottom:10px;opacity:.4}
 .empty p{font-size:12px;color:var(--mut)}
 
-/* ── Result ── */
+/* ══ RESULT ══ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.result{animation:fadeUp .35s ease forwards}
+.result{animation:fadeUp .3s ease forwards}
 
-/* ── Gauges mini (kalkulator) ── */
+/* ── Mini gauges ── */
 .mini-gauges{
-  background:#0d0d0d;border:1px solid var(--b1);
-  border-radius:14px;padding:16px;
-  display:flex;justify-content:space-around;margin-bottom:14px;
+  background:var(--s2);border:1px solid var(--b1);
+  border-radius:14px;padding:14px;
+  display:flex;justify-content:space-around;
+  margin-bottom:12px;transition:background .25s;
 }
 .mgauge{display:flex;flex-direction:column;align-items:center;gap:3px}
-.mgval{font-family:'DM Mono',monospace;font-size:12px;text-align:center}
+.mgval{font-family:'DM Mono',monospace;font-size:11px;text-align:center}
 
-.c2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
-.card{background:var(--s1);border:1px solid var(--b1);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:3px}
-.card.hi{border-color:var(--accent);box-shadow:0 0 18px var(--glow)}
+.c2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.card{
+  background:var(--card-bg);border:1px solid var(--b1);
+  border-radius:12px;padding:13px;
+  display:flex;flex-direction:column;gap:3px;
+  box-shadow:var(--shadow);transition:background .25s,border-color .25s;
+}
+.card.hi{border-color:var(--accent);box-shadow:0 0 16px var(--glow)}
 .clbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-.cval{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;margin-top:2px}
+.cval{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;margin-top:2px}
 
 .summary{
-  background:var(--s1);border:1px solid var(--b1);
-  border-radius:11px;padding:13px 14px;
-  font-size:12px;color:#888;line-height:1.7;margin-top:9px;
+  background:var(--summary-bg);border:1px solid var(--b1);
+  border-radius:11px;padding:12px 13px;
+  font-size:12px;color:var(--mut);line-height:1.7;margin-top:8px;
+  transition:background .25s,border-color .25s;
 }
-.sisa-card{border-radius:11px;padding:12px 14px;font-size:12px;margin-top:9px;line-height:1.6}
-.sisa-card.ok{background:#052e16;border:1px solid #166534;color:#86efac}
-.sisa-card.kurang{background:#1c0a00;border:1px solid #7c2d12;color:#fdba74}
+.sisa-card{border-radius:11px;padding:11px 13px;font-size:12px;margin-top:8px;line-height:1.6}
+.sisa-card.ok{background:#052e1640;border:1px solid #166534;color:#86efac}
+.sisa-card.kurang{background:#7f1d1d40;border:1px solid #7c2d12;color:#fdba74}
 
-/* ════════════════════════════════
-   PERJALANAN PAGE
-════════════════════════════════ */
+/* ══ SPEEDOMETER PAGE ══ */
 .speedo-wrap{
   display:flex;flex-direction:column;align-items:center;
-  padding:10px 0 4px;margin-bottom:14px;
+  padding:6px 0 4px;margin-bottom:12px;
 }
-#speedoSvg{width:min(280px,80vw);height:auto}
-
+#speedoSvg{width:min(270px,80vw);height:auto}
 .speed-digital{
-  font-family:'DM Mono',monospace;
-  font-size:52px;font-weight:500;
-  line-height:1;margin-top:-4px;
-  transition:color .3s;
+  font-family:'DM Mono',monospace;font-size:48px;font-weight:500;
+  line-height:1;margin-top:-2px;transition:color .3s;
 }
-.speed-unit{font-size:13px;color:var(--mut);margin-top:2px;letter-spacing:1px}
+.speed-unit{font-size:12px;color:var(--mut);margin-top:2px;letter-spacing:1px}
 
-.trip-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:9px;
-  margin-bottom:14px;
-}
+.trip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .trip-card{
-  background:var(--s1);border:1px solid var(--b1);
-  border-radius:12px;padding:13px;
+  background:var(--card-bg);border:1px solid var(--b1);
+  border-radius:11px;padding:12px;
+  box-shadow:var(--shadow);transition:background .25s,border-color .25s;
 }
 .trip-lbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .trip-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:500}
@@ -212,41 +265,38 @@ input::placeholder{color:var(--fnt)}
 
 .gps-status{
   text-align:center;font-size:12px;color:var(--mut);
-  margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px;
 }
-.gps-dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex-shrink:0}
+.gps-dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex-shrink:0;transition:background .3s}
 .gps-dot.active{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 .track-btn{
-  width:100%;padding:14px;border-radius:12px;
-  border:none;font-size:15px;font-weight:600;
+  width:100%;padding:13px;border-radius:11px;
+  border:none;font-size:14px;font-weight:600;
   font-family:'DM Sans',sans-serif;cursor:pointer;
-  transition:all .25s;margin-bottom:12px;
+  transition:all .25s;margin-bottom:10px;
 }
 .track-btn.start{background:var(--green);color:#000}
-.track-btn.stop{background:#1c0a00;border:1px solid var(--red);color:var(--red)}
+.track-btn.stop{background:#7f1d1d40;border:1px solid var(--red);color:var(--red)}
 
-.trip-info-note{
-  text-align:center;font-size:11px;color:var(--fnt);
-  padding:0 20px;line-height:1.5;
-}
+.trip-note{text-align:center;font-size:11px;color:var(--b2);padding:0 20px;line-height:1.5}
 
-/* ── Install banner ── */
+/* ══ INSTALL BANNER ══ */
 #installBanner{
-  display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);
-  background:var(--s2);border:1px solid var(--b2);border-radius:12px;
-  padding:10px 16px;font-size:12px;color:var(--txt);
-  display:flex;align-items:center;gap:10px;
-  box-shadow:0 4px 24px #00000066;z-index:100;
-  max-width:360px;width:calc(100% - 32px);
+  position:fixed;bottom:68px;left:50%;transform:translateX(-50%);
+  background:var(--s1);border:1px solid var(--accent);border-radius:12px;
+  padding:10px 14px;font-size:12px;color:var(--txt);
+  display:none;align-items:center;gap:10px;
+  box-shadow:0 4px 24px #0004;z-index:200;
+  max-width:340px;width:calc(100% - 32px);
 }
 #installBanner button{
   background:var(--accent);color:#000;border:none;
   border-radius:7px;padding:6px 12px;font-size:12px;
   font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;flex-shrink:0;
 }
-#installBanner .ib-close{
+#installBanner .ib-x{
   background:none;border:none;color:var(--mut);
   font-size:16px;cursor:pointer;padding:0;flex-shrink:0;margin-left:auto;
 }
@@ -256,15 +306,20 @@ input::placeholder{color:var(--fnt)}
 </head>
 <body>
 
-<!-- ═══════════════ PAGES ═══════════════ -->
 <div class="pages">
 
-  <!-- ── KALKULATOR ── -->
+  <!-- ════ KALKULATOR ════ -->
   <div class="page active" id="pg-kalkulator">
 
-    <div class="pg-title">
-      <div class="pg-icon" id="hIcon">⛽</div>
-      <h1>Kalkulator BBM</h1>
+    <div class="top-bar">
+      <div class="pg-title">
+        <div class="pg-icon" id="hIcon">⛽</div>
+        <h1>Kalkulator BBM</h1>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+        <span class="icon" id="themeIcon">🌙</span>
+        <span id="themeTxt">Light</span>
+      </button>
     </div>
     <p class="pg-sub">Hitung biaya &amp; estimasi perjalanan</p>
 
@@ -283,7 +338,16 @@ input::placeholder{color:var(--fnt)}
           <span class="ul">/L</span>
         </div>
       </div>
-      <p class="harga-note">Data: <a href="https://pertaminapatraniaga.com/page/harga-terbaru-bbm" target="_blank">pertaminapatraniaga.com ↗</a></p>
+      <div class="harga-row">
+        <span class="harga-note">
+          Data: <a href="https://mypertamina.id/about/product-price" target="_blank">mypertamina.id ↗</a>
+          &bull; diperbarui: <span id="lastUpdate">18 Apr 2026</span>
+        </span>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshHarga()">
+          <span class="ri">🔄</span> Refresh
+        </button>
+      </div>
+      <div class="refresh-msg" id="refreshMsg"></div>
     </div>
 
     <!-- Kendaraan -->
@@ -292,7 +356,7 @@ input::placeholder{color:var(--fnt)}
       <div class="pills" id="kPills"></div>
       <div class="ibar" id="kBar">
         <span>Efisiensi estimasi</span>
-        <span class="iv" id="kBarVal" style="color:#888"></span>
+        <span class="iv" id="kBarVal" style="color:var(--txt)"></span>
       </div>
       <div class="hidden" id="kCustomRow">
         <div class="irow" style="margin-top:8px">
@@ -302,7 +366,7 @@ input::placeholder{color:var(--fnt)}
       </div>
     </div>
 
-    <!-- Maps link -->
+    <!-- Google Maps -->
     <div class="maps-box">
       <div class="maps-title">🗺 Jarak dari Google Maps</div>
       <input type="url" id="mapsUrl" placeholder="Paste link route Google Maps di sini..." oninput="onMI()">
@@ -310,7 +374,7 @@ input::placeholder{color:var(--fnt)}
       <div class="maps-st" id="mapsSt"></div>
     </div>
 
-    <!-- Budget input -->
+    <!-- Budget -->
     <div class="sec">
       <div class="or">atau masukkan manual</div>
       <span class="lbl">Budget BBM</span>
@@ -329,22 +393,20 @@ input::placeholder{color:var(--fnt)}
 
     <!-- Result -->
     <div class="hidden" id="resultEl">
-      <!-- Mini gauges -->
       <div class="mini-gauges">
         <div class="mgauge">
-          <svg id="mgL" width="90" height="66" viewBox="0 0 90 66"></svg>
+          <svg id="mgL" width="86" height="62" viewBox="0 0 86 62"></svg>
           <div class="mgval" id="mgLv"></div>
         </div>
         <div class="mgauge">
-          <svg id="mgJ" width="90" height="66" viewBox="0 0 90 66"></svg>
+          <svg id="mgJ" width="86" height="62" viewBox="0 0 86 62"></svg>
           <div class="mgval" id="mgJv" style="color:var(--blue)"></div>
         </div>
         <div class="mgauge">
-          <svg id="mgP" width="90" height="66" viewBox="0 0 90 66"></svg>
+          <svg id="mgP" width="86" height="62" viewBox="0 0 86 62"></svg>
           <div class="mgval" id="mgPv" style="color:var(--purple)"></div>
         </div>
       </div>
-
       <div class="c2">
         <div class="card hi">
           <span class="clbl">Uang Dibayar</span>
@@ -365,44 +427,42 @@ input::placeholder{color:var(--fnt)}
           <span class="cval" style="color:var(--purple)" id="cPerKm"></span>
         </div>
       </div>
-
-      <!-- Sisa/kurang panel (muncul jika ada rute Maps) -->
-      <div id="sisaPanel" class="hidden"></div>
-
+      <div id="sisaPanel"></div>
       <div class="summary" id="summaryEl"></div>
     </div>
 
   </div><!-- /kalkulator -->
 
 
-  <!-- ── PERJALANAN ── -->
+  <!-- ════ PERJALANAN ════ -->
   <div class="page" id="pg-perjalanan">
 
-    <div class="pg-title">
-      <div class="pg-icon" style="background:#60a5fa22;border-color:#60a5fa60">🏍️</div>
-      <h1>Perjalanan</h1>
+    <div class="top-bar" style="margin-bottom:4px">
+      <div class="pg-title">
+        <div class="pg-icon" style="background:#60a5fa22;border-color:#60a5fa60">🏍️</div>
+        <h1>Perjalanan</h1>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn2">
+        <span class="icon" id="themeIcon2">🌙</span>
+        <span id="themeTxt2">Light</span>
+      </button>
     </div>
-    <p class="pg-sub" style="margin-bottom:14px">Speedometer &amp; GPS tracker realtime</p>
+    <p class="pg-sub" style="margin-bottom:10px">Speedometer &amp; GPS tracker realtime</p>
 
     <!-- Speedometer -->
     <div class="speedo-wrap">
-      <svg id="speedoSvg" viewBox="0 0 300 240" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="speedoSvg" viewBox="0 0 300 230" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="speed-digital" id="speedDigital" style="color:var(--blue)">0</div>
       <div class="speed-unit">KM/H</div>
     </div>
 
-    <!-- GPS status -->
     <div class="gps-status">
       <div class="gps-dot" id="gpsDot"></div>
       <span id="gpsStatusTxt">GPS tidak aktif</span>
     </div>
 
-    <!-- Start/Stop -->
-    <button class="track-btn start" id="trackBtn" onclick="toggleTrack()">
-      ▶ Mulai Perjalanan
-    </button>
+    <button class="track-btn start" id="trackBtn" onclick="toggleTrack()">▶ Mulai Perjalanan</button>
 
-    <!-- Stats -->
     <div class="trip-grid">
       <div class="trip-card">
         <div class="trip-lbl">Jarak</div>
@@ -411,8 +471,8 @@ input::placeholder{color:var(--fnt)}
       </div>
       <div class="trip-card">
         <div class="trip-lbl">Waktu</div>
-        <div class="trip-val" id="tWaktu" style="color:var(--txt)">0:00</div>
-        <div class="trip-sub">menit:detik</div>
+        <div class="trip-val" id="tWaktu">0:00</div>
+        <div class="trip-sub">menit : detik</div>
       </div>
       <div class="trip-card">
         <div class="trip-lbl">Kec. Maks</div>
@@ -421,7 +481,7 @@ input::placeholder{color:var(--fnt)}
       </div>
       <div class="trip-card">
         <div class="trip-lbl">Kec. Rata-rata</div>
-        <div class="trip-val" id="tAvg" style="color:var(--txt)">0</div>
+        <div class="trip-val" id="tAvg">0</div>
         <div class="trip-sub">km/h</div>
       </div>
       <div class="trip-card">
@@ -436,13 +496,13 @@ input::placeholder{color:var(--fnt)}
       </div>
     </div>
 
-    <p class="trip-info-note">Gunakan pengaturan BBM &amp; kendaraan dari tab Kalkulator.<br>GPS butuh izin lokasi &amp; kondisi outdoor untuk akurasi terbaik.</p>
+    <p class="trip-note">Gunakan pengaturan BBM &amp; kendaraan dari tab Kalkulator.<br>GPS butuh izin lokasi &amp; outdoor untuk akurasi terbaik.</p>
 
   </div><!-- /perjalanan -->
 
 </div><!-- /pages -->
 
-<!-- ═══════════════ NAV ═══════════════ -->
+<!-- ═══ NAV ═══ -->
 <nav>
   <button class="nav-btn active" id="nb-kalk" onclick="goPage('kalkulator')">
     <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
@@ -454,72 +514,85 @@ input::placeholder{color:var(--fnt)}
   </button>
 </nav>
 
-<!-- Install banner -->
-<div id="installBanner" style="display:none">
-  <span>📲 Install app ke homescreen</span>
+<!-- ═══ INSTALL BANNER ═══ -->
+<div id="installBanner">
+  <span>📲 Install BBM Tracker ke homescreen?</span>
   <button onclick="doInstall()">Install</button>
-  <button class="ib-close" onclick="$('installBanner').style.display='none'">✕</button>
+  <button class="ib-x" onclick="document.getElementById('installBanner').style.display='none'">✕</button>
 </div>
 
 <script>
 /* ══════════════════════════════════════
-   DATA
+   DATA — harga per 18 April 2026 (Jawa/Bali)
 ══════════════════════════════════════ */
-const FUEL=[
-  {nama:"Pertalite",       h:10000, w:"#22c55e"},
-  {nama:"Pertamax",        h:13900, w:"#f97316"},
-  {nama:"Pertamax Turbo",  h:14400, w:"#ef4444"},
-  {nama:"Dexlite",         h:15000, w:"#3b82f6"},
-  {nama:"Pertamina Dex",   h:15900, w:"#8b5cf6"},
+let FUEL=[
+  {nama:"Pertalite",    h:10000, w:"#22c55e", ron:"RON 90"},
+  {nama:"Pertamax",     h:12300, w:"#f97316", ron:"RON 92"},
+  {nama:"Pertamax Turbo",h:19400,w:"#ef4444", ron:"RON 98"},
+  {nama:"Dexlite",      h:23600, w:"#3b82f6", ron:"CN 51"},
+  {nama:"Pertamina Dex",h:23900, w:"#8b5cf6", ron:"CN 53"},
 ];
 const KEN=[
-  {nama:"Motor Bebek/Matic", k:45},
-  {nama:"Motor Sport",       k:35},
-  {nama:"Motor Besar",       k:20},
-  {nama:"Mobil City Car",    k:18},
-  {nama:"Mobil Sedan",       k:14},
-  {nama:"Mobil SUV",         k:12},
-  {nama:"Pickup/Truk",       k:10},
+  {nama:"Motor Bebek/Matic",k:45},
+  {nama:"Motor Sport",      k:35},
+  {nama:"Motor Besar",      k:20},
+  {nama:"Mobil City Car",   k:18},
+  {nama:"Mobil Sedan",      k:14},
+  {nama:"Mobil SUV",        k:12},
+  {nama:"Pickup/Truk",      k:10},
 ];
 const BQUICK=[20000,50000,100000,150000,200000];
+const MAX_SPD=160;
+const SVG_NS="http://www.w3.org/2000/svg";
 
 /* ── State kalkulator ── */
-let fi=1, cfuel=false, harga=13900;
-let ki=0, cken=false, konsumsi=45;
-let budget=0, mapsKm=null, mapsLabel="";
+let fi=0,cfuel=false,harga=10000;
+let ki=0,cken=false,konsumsi=45;
+let budget=0,mapsKm=null,mapsLabel="";
 
 /* ── State trip ── */
-let tracking=false, watchId=null, timerInt=null;
-let tripDist=0, tripSec=0, tripMaxSpd=0, tripSpdSum=0, tripSpdCount=0;
-let lastLat=null, lastLon=null, lastTime=null;
-let currentSpeed=0;
-const MAX_SPD=160; // km/h
+let tracking=false,watchId=null,timerInt=null;
+let tripDist=0,tripSec=0,tripMax=0,tripSpdSum=0,tripSpdN=0;
+let lastLa=null,lastLo=null,lastT=null;
 
 /* ══════════════════════════════════════
    UTILS
 ══════════════════════════════════════ */
-function $(id){return document.getElementById(id)}
+function $(i){return document.getElementById(i)}
 function rp(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(n)}
-function fmt2(n){return n.toFixed(2)}
-function fmtTime(s){
-  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
-  return h>0?`${h}:${pad(m)}:${pad(sec)}`:`${m}:${pad(sec)}`;
-}
 function pad(n){return String(n).padStart(2,"0")}
+function fmtT(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return h?`${h}:${pad(m)}:${pad(ss)}`:`${m}:${pad(ss)}`}
+function haversine(la1,lo1,la2,lo2){
+  const R=6371,d=Math.PI/180;
+  const a=Math.sin((la2-la1)*d/2)**2+Math.cos(la1*d)*Math.cos(la2*d)*Math.sin((lo2-lo1)*d/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+function mk(tag,cls,txt){const e=document.createElement(tag);e.className=cls;if(txt!=null)e.textContent=txt;return e}
 
 function setAccent(c){
-  const r=document.documentElement;
-  r.style.setProperty("--accent",c);
-  r.style.setProperty("--glow",c+"22");
+  document.documentElement.style.setProperty("--accent",c);
+  document.documentElement.style.setProperty("--glow",c+"22");
   $("hIcon").style.background=c+"22";
   $("hIcon").style.borderColor=c+"60";
 }
 
-function haversine(la1,lo1,la2,lo2){
-  const R=6371,d2r=Math.PI/180;
-  const dlat=(la2-la1)*d2r, dlon=(lo2-lo1)*d2r;
-  const a=Math.sin(dlat/2)**2+Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dlon/2)**2;
-  return R*2*Math.asin(Math.sqrt(a));
+/* ══════════════════════════════════════
+   THEME
+══════════════════════════════════════ */
+let isDark=true;
+function toggleTheme(){
+  isDark=!isDark;
+  const theme=isDark?"dark":"light";
+  document.documentElement.setAttribute("data-theme",theme);
+  $("themeColorMeta").content=isDark?"#0a0a0a":"#f5f5f5";
+  // sync both buttons
+  ["themeBtn","themeBtn2"].forEach(id=>{
+    $(id.replace("Btn","Icon")).textContent=isDark?"🌙":"☀️";
+    $(id.replace("Btn","Txt")).textContent=isDark?"Light":"Dark";
+  });
+  localStorage.setItem("bbm-theme",theme);
+  // Redraw speedometer for theme
+  buildSpeedometer();
 }
 
 /* ══════════════════════════════════════
@@ -533,16 +606,10 @@ function goPage(name){
 }
 
 /* ══════════════════════════════════════
-   PILL BUILDERS
+   PILLS
 ══════════════════════════════════════ */
-function mk(tag,cls,txt){
-  const el=document.createElement(tag);
-  el.className=cls; if(txt!=null) el.textContent=txt;
-  return el;
-}
-
 function buildFuel(){
-  const c=$("fuelPills"); c.innerHTML="";
+  const c=$("fuelPills");c.innerHTML="";
   FUEL.forEach((f,i)=>{
     const b=mk("button","pill"+(i===fi&&!cfuel?" active":""),f.nama);
     b.style.cssText=`--accent:${f.w};--glow:${f.w}22`;
@@ -553,33 +620,26 @@ function buildFuel(){
     c.appendChild(b);
   });
   const cu=mk("button","pill"+(cfuel?" active":""),"Custom");
-  cu.onclick=()=>{cfuel=true;
-    $("fuelCustomRow").classList.remove("hidden");
-    $("fuelBar").classList.add("hidden");
-    buildFuel()};
+  cu.onclick=()=>{cfuel=true;$("fuelCustomRow").classList.remove("hidden");$("fuelBar").classList.add("hidden");buildFuel()};
   c.appendChild(cu);
 }
 
 function buildKen(){
-  const c=$("kPills"); c.innerHTML="";
+  const c=$("kPills");c.innerHTML="";
   KEN.forEach((k,i)=>{
     const b=mk("button","pill"+(i===ki&&!cken?" active":""),k.nama);
     b.onclick=()=>{ki=i;cken=false;konsumsi=k.k;
-      $("kCustomRow").classList.add("hidden");
-      $("kBar").classList.remove("hidden");
+      $("kCustomRow").classList.add("hidden");$("kBar").classList.remove("hidden");
       buildKen();updateKBar();hitung()};
     c.appendChild(b);
   });
   const cu=mk("button","pill"+(cken?" active":""),"Custom");
-  cu.onclick=()=>{cken=true;
-    $("kCustomRow").classList.remove("hidden");
-    $("kBar").classList.add("hidden");
-    buildKen()};
+  cu.onclick=()=>{cken=true;$("kCustomRow").classList.remove("hidden");$("kBar").classList.add("hidden");buildKen()};
   c.appendChild(cu);
 }
 
 function buildQuick(){
-  const c=$("quickPills"); c.innerHTML="";
+  const c=$("quickPills");c.innerHTML="";
   BQUICK.forEach(v=>{
     const b=mk("button","pill"+(budget==v?" active":""),v>=1000?v/1000+"rb":v);
     b.onclick=()=>{$("budgetIn").value=v;budget=v;buildQuick();hitung()};
@@ -588,14 +648,98 @@ function buildQuick(){
 }
 
 function updateFuelBar(){
-  const c=FUEL[fi]?.w||"#f97316";
-  $("fuelBarVal").style.color=c;
+  const col=FUEL[fi]?.w||"#f97316";
+  $("fuelBarVal").style.color=col;
   $("fuelBarVal").textContent=rp(harga)+"/liter";
-  setAccent(c);
+  setAccent(col);
 }
 function updateKBar(){$("kBarVal").textContent=konsumsi+" km/liter"}
 function onCF(){harga=parseFloat($("fuelCustomIn").value)||0;hitung()}
 function onCK(){konsumsi=parseFloat($("kCustomIn").value)||0;hitung()}
+
+/* ══════════════════════════════════════
+   REFRESH HARGA BBM
+══════════════════════════════════════ */
+async function refreshHarga(){
+  const btn=$("refreshBtn");
+  const msg=$("refreshMsg");
+  btn.classList.add("loading");
+  btn.disabled=true;
+  msg.className="refresh-msg";
+
+  // Harga fallback terkini (18 April 2026, Jawa/Bali)
+  const FALLBACK=[
+    {nama:"Pertalite",    h:10000, w:"#22c55e", ron:"RON 90"},
+    {nama:"Pertamax",     h:12300, w:"#f97316", ron:"RON 92"},
+    {nama:"Pertamax Turbo",h:19400,w:"#ef4444", ron:"RON 98"},
+    {nama:"Dexlite",      h:23600, w:"#3b82f6", ron:"CN 51"},
+    {nama:"Pertamina Dex",h:23900, w:"#8b5cf6", ron:"CN 53"},
+  ];
+
+  try{
+    // Coba fetch via CORS proxy
+    const proxyUrl="https://api.allorigins.win/raw?url="+encodeURIComponent("https://mypertamina.id/about/product-price");
+    const res=await fetch(proxyUrl,{signal:AbortSignal.timeout(8000)});
+    if(!res.ok) throw new Error("proxy error");
+    const html=await res.text();
+
+    // Parse harga dari HTML — cari pola angka setelah nama BBM
+    const parsed=parsePertaminaHtml(html);
+    if(parsed&&parsed.length>=3){
+      // Update harga yang berhasil diparse
+      parsed.forEach(p=>{
+        const match=FUEL.find(f=>f.nama.toLowerCase()===p.nama.toLowerCase());
+        if(match) match.h=p.h;
+      });
+      const now=new Date();
+      const tgl=`${now.getDate()} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][now.getMonth()]} ${now.getFullYear()}`;
+      $("lastUpdate").textContent=tgl;
+      localStorage.setItem("bbm-harga",JSON.stringify(FUEL));
+      localStorage.setItem("bbm-update",tgl);
+      showRefreshMsg("ok","✅ Harga berhasil diperbarui dari mypertamina.id");
+    } else {
+      throw new Error("parse failed");
+    }
+  }catch(e){
+    // Gunakan fallback hardcode
+    FUEL=FALLBACK;
+    showRefreshMsg("err","⚠️ Tidak bisa mengambil data online. Menggunakan harga terakhir diketahui (18 Apr 2026).");
+  }
+
+  buildFuel();
+  if(!cfuel){harga=FUEL[fi].h}
+  updateFuelBar();
+  hitung();
+  btn.classList.remove("loading");
+  btn.disabled=false;
+}
+
+function parsePertaminaHtml(html){
+  // Coba ekstrak harga dari HTML mypertamina.id
+  const results=[];
+  const patterns=[
+    {nama:"Pertalite",   re:/pertalite[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
+    {nama:"Pertamax",    re:/pertamax(?!\s*turbo|green)[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
+    {nama:"Pertamax Turbo",re:/pertamax\s*turbo[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
+    {nama:"Dexlite",     re:/dexlite[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
+    {nama:"Pertamina Dex",re:/pertamina\s*dex[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
+  ];
+  patterns.forEach(p=>{
+    const m=html.match(p.re);
+    if(m){
+      const h=parseInt(m[1].replace(/\./g,""),10);
+      if(h>1000&&h<200000) results.push({nama:p.nama,h});
+    }
+  });
+  return results;
+}
+
+function showRefreshMsg(type,txt){
+  const m=$("refreshMsg");
+  m.className="refresh-msg "+type;
+  m.textContent=txt;
+  setTimeout(()=>{m.className="refresh-msg"},5000);
+}
 
 /* ══════════════════════════════════════
    GOOGLE MAPS → JARAK
@@ -614,7 +758,7 @@ async function fetchDist(){
   $("mapsBtn").disabled=true;
   try{
     const p=parseUrl(url);
-    if(!p){setSt("err","❌ Format link tidak dikenali. Buka Google Maps → Directions → Share → salin link lengkap (bukan link pendek goo.gl).");$("mapsBtn").disabled=false;return}
+    if(!p){setSt("err","❌ Format tidak dikenali. Buka Google Maps → Directions → Share → salin link lengkap (bukan goo.gl).");$("mapsBtn").disabled=false;return}
     setSt("ld",`⏳ Geocoding: <b>${p.o}</b> → <b>${p.d}</b>`);
     const [oc,dc]=await Promise.all([geo(p.o),geo(p.d)]);
     if(!oc){setSt("err",`❌ Lokasi asal tidak ditemukan: "${p.o}"`);$("mapsBtn").disabled=false;return}
@@ -622,15 +766,11 @@ async function fetchDist(){
     setSt("ld","⏳ Menghitung rute...");
     const km=await osrm(oc,dc);
     if(!km){setSt("err","❌ Gagal menghitung rute. Coba masukkan jarak manual.");$("mapsBtn").disabled=false;return}
-    mapsKm=km;
-    mapsLabel=`${cleanN(p.o)} → ${cleanN(p.d)}`;
-    setSt("ok",`✅ Jarak rute: <b>${km.toFixed(1)} km</b><br><span style="font-size:11px;opacity:.8">${mapsLabel}</span>`);
+    mapsKm=km;mapsLabel=`${cln(p.o)} → ${cln(p.d)}`;
+    setSt("ok",`✅ Jarak rute: <b>${km.toFixed(1)} km</b><br><span style="opacity:.8;font-size:11px">${mapsLabel}</span>`);
     $("mapsBtn").disabled=false;
     hitung();
-  }catch(e){
-    setSt("err","❌ Gagal. Periksa koneksi internet.");
-    $("mapsBtn").disabled=false;
-  }
+  }catch(e){setSt("err","❌ Gagal. Periksa koneksi.");$("mapsBtn").disabled=false}
 }
 
 function setSt(t,h){const e=$("mapsSt");e.className="maps-st "+t;e.innerHTML=h}
@@ -643,9 +783,7 @@ function parseUrl(url){
   }
   return null;
 }
-
 function isCoord(s){return /^-?\d+\.?\d*,-?\d+\.?\d*$/.test(s.trim())}
-
 async function geo(place){
   if(isCoord(place)){const[la,lo]=place.split(",").map(Number);return{la,lo}}
   const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`,{headers:{"Accept-Language":"id","User-Agent":"BBM-Tracker/1.0"}});
@@ -653,67 +791,58 @@ async function geo(place){
   if(d&&d.length) return{la:+d[0].lat,lo:+d[0].lon};
   return null;
 }
-
 async function osrm({la:la1,lo:lo1},{la:la2,lo:lo2}){
   const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`);
   const d=await r.json();
   if(d.code==="Ok"&&d.routes[0]) return d.routes[0].distance/1000;
   return null;
 }
-
-function cleanN(s){return isCoord(s)?s:s.split(",")[0]}
+function cln(s){return isCoord(s)?s:s.split(",")[0]}
 
 /* ══════════════════════════════════════
-   KALKULATOR HITUNG
+   KALKULATOR
 ══════════════════════════════════════ */
 function hitung(){
   budget=parseFloat($("budgetIn").value)||0;
   buildQuick();
-  if(!budget||!harga||!konsumsi){show(false);return}
+  if(!budget||!harga||!konsumsi){showResult(false);return}
   const liter=budget/harga;
   const bisa=liter*konsumsi;
   const perKm=budget/bisa;
   const fc=FUEL[fi]?.w||"#f97316";
-  show(true);
+  showResult(true);
 
-  // mini gauges
   drawMG("mgL",liter/Math.max(liter*1.5,5),fc,"LITER");
   drawMG("mgJ",bisa/Math.max(bisa*1.5,50),"#60a5fa","JARAK");
   drawMG("mgP",perKm/Math.max(perKm*2,1000),"#a78bfa","per KM");
-  $("mgLv").innerHTML=`<span style="color:${fc}">${fmt2(liter)}</span><span style="color:var(--mut);font-size:10px"> L</span>`;
-  $("mgJv").innerHTML=`<span style="color:var(--blue)">${bisa.toFixed(1)}</span><span style="color:var(--mut);font-size:10px"> km</span>`;
-  $("mgPv").innerHTML=`<span style="color:var(--purple)">${Math.round(perKm).toLocaleString("id-ID")}</span><span style="color:var(--mut);font-size:10px"> Rp</span>`;
+  $("mgLv").innerHTML=`<span style="color:${fc}">${liter.toFixed(2)}</span><span style="color:var(--mut);font-size:9px"> L</span>`;
+  $("mgJv").innerHTML=`<span style="color:var(--blue)">${bisa.toFixed(1)}</span><span style="color:var(--mut);font-size:9px"> km</span>`;
+  $("mgPv").innerHTML=`<span style="color:var(--purple)">${Math.round(perKm).toLocaleString("id-ID")}</span><span style="color:var(--mut);font-size:9px"> Rp</span>`;
 
-  $("cBiaya").style.color=fc; $("cBiaya").textContent=rp(Math.round(budget));
-  $("cLiter").textContent=fmt2(liter)+" L";
+  $("cBiaya").style.color=fc;$("cBiaya").textContent=rp(Math.round(budget));
+  $("cLiter").textContent=liter.toFixed(2)+" L";
   $("cBisa").textContent=bisa.toFixed(1)+" km";
   $("cPerKm").textContent=rp(Math.round(perKm));
 
-  // Sisa/kurang panel
   const sp=$("sisaPanel");
   if(mapsKm){
-    sp.classList.remove("hidden");
-    const selisih=bisa-mapsKm;
-    const ok=selisih>=0;
-    sp.className=ok?"sisa-card ok":"sisa-card kurang";
+    const sel=bisa-mapsKm;const ok=sel>=0;
+    sp.className="sisa-card "+(ok?"ok":"kurang");
     sp.innerHTML=ok
-      ?`✅ Budget <b>cukup</b> untuk rute <b>${mapsLabel}</b> (${mapsKm.toFixed(1)} km)<br>Sisa ≈ <b>${rp(Math.round(selisih*perKm))}</b> (${(bisa-mapsKm).toFixed(1)} km)`
-      :`⚠️ Budget <b>kurang</b> untuk rute <b>${mapsLabel}</b> (${mapsKm.toFixed(1)} km)<br>Perlu tambah ≈ <b>${rp(Math.round(-selisih*perKm))}</b>`;
-  } else {
-    sp.classList.add("hidden");
-  }
+      ?`✅ Budget <b>cukup</b> untuk ${mapsLabel} (${mapsKm.toFixed(1)} km)<br>Sisa ≈ <b>${rp(Math.round(sel*perKm))}</b>`
+      :`⚠️ Budget <b>kurang</b> untuk ${mapsLabel} (${mapsKm.toFixed(1)} km)<br>Perlu tambah ≈ <b>${rp(Math.round(-sel*perKm))}</b>`;
+  } else {sp.className="";sp.innerHTML=""}
 
   const fn=cfuel?"BBM custom":FUEL[fi].nama;
   const kn=cken?"kendaraan custom":KEN[ki].nama.toLowerCase();
   $("summaryEl").innerHTML=
-    `Budget <span style="color:${fc}">${rp(budget)}</span> beli `+
-    `<span style="color:${fc}">${fmt2(liter)} L</span> ${fn} — `+
-    `${kn} bisa jalan <span style="color:var(--blue)">${bisa.toFixed(1)} km</span> `+
-    `(Rp${Math.round(perKm).toLocaleString("id-ID")}/km).`+
-    (mapsKm?"":" Paste link Google Maps untuk cek apakah budget cukup untuk rute tertentu.");
+    `Budget <span style="color:${fc}">${rp(budget)}</span> → `+
+    `<span style="color:${fc}">${liter.toFixed(2)} L</span> ${fn} → `+
+    `${kn} jalan <span style="color:var(--blue)">${bisa.toFixed(1)} km</span>`+
+    (mapsKm?"":" — paste link Maps untuk cek kecukupan budget.")+".";
 }
 
-function show(yes){
+function showResult(yes){
   $("emptyState").classList.toggle("hidden",yes);
   const re=$("resultEl");
   if(yes){re.classList.remove("hidden","result");void re.offsetWidth;re.classList.add("result")}
@@ -721,10 +850,10 @@ function show(yes){
 }
 
 /* ══════════════════════════════════════
-   MINI GAUGE (kalkulator)
+   MINI GAUGE
 ══════════════════════════════════════ */
 function drawMG(id,pct,color,lbl){
-  const s=$(id),cx=45,cy=58,r=35;
+  const s=$(id),cx=43,cy=54,r=34;
   const sa=135*Math.PI/180,ea=(135+270)*Math.PI/180;
   const fa=sa+(ea-sa)*Math.min(Math.max(pct,0),1);
   function arc(a1,a2){
@@ -732,165 +861,128 @@ function drawMG(id,pct,color,lbl){
     const x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
     return `M${x1} ${y1}A${r} ${r} 0 ${(a2-a1)>Math.PI?1:0} 1 ${x2} ${y2}`;
   }
-  const nx=cx+(r-11)*Math.cos(fa),ny=cy+(r-11)*Math.sin(fa);
+  const nx=cx+(r-10)*Math.cos(fa),ny=cy+(r-10)*Math.sin(fa);
+  const trackColor=isDark?"#2a2a2a":"#e0e0e0";
   s.innerHTML=`
-    <path d="${arc(sa,ea)}" fill="none" stroke="#2a2a2a" stroke-width="6" stroke-linecap="round"/>
+    <path d="${arc(sa,ea)}" fill="none" stroke="${trackColor}" stroke-width="6" stroke-linecap="round"/>
     <path d="${arc(sa,fa)}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" style="filter:drop-shadow(0 0 3px ${color})"/>
     <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="${cx}" cy="${cy}" r="3.5" fill="${color}"/>
-    <text x="${cx}" y="${cy-8}" text-anchor="middle" fill="#555" font-size="7" font-family="monospace">${lbl}</text>`;
+    <circle cx="${cx}" cy="${cy}" r="3" fill="${color}"/>
+    <text x="${cx}" y="${cy-7}" text-anchor="middle" fill="#888" font-size="7" font-family="monospace">${lbl}</text>`;
 }
 
 /* ══════════════════════════════════════
    SPEEDOMETER
 ══════════════════════════════════════ */
-const SVG_NS="http://www.w3.org/2000/svg";
-const SCX=150,SCY=145,SR=118;
-
-function p2c(r,deg){
-  const rad=deg*Math.PI/180;
-  return{x:SCX+r*Math.cos(rad),y:SCY+r*Math.sin(rad)};
-}
-
-function arcPath(r,a1,a2){
+const SCX=150,SCY=138,SR=112;
+function p2c(r,deg){const rad=deg*Math.PI/180;return{x:SCX+r*Math.cos(rad),y:SCY+r*Math.sin(rad)}}
+function arcP(r,a1,a2){
   const s=p2c(r,a1),e=p2c(r,a2);
-  const large=(a2-a1)>180?1:0;
-  return `M${s.x} ${s.y}A${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
+  return `M${s.x} ${s.y}A${r} ${r} 0 ${(a2-a1)>180?1:0} 1 ${e.x} ${e.y}`;
 }
 
 function buildSpeedometer(){
-  const svg=$("speedoSvg");
-  svg.innerHTML="";
+  const svg=$("speedoSvg");svg.innerHTML="";
+  const trackC=isDark?"#1e1e1e":"#e0e0e0";
+  const textC=isDark?"#444":"#bbb";
+  const bgC=isDark?"#0d0d0d":"#f0f0f0";
 
-  // Background circle
+  // BG circle
   const bg=document.createElementNS(SVG_NS,"circle");
-  bg.setAttribute("cx",SCX);bg.setAttribute("cy",SCY);bg.setAttribute("r",SR+10);
-  bg.setAttribute("fill","#0d0d0d");bg.setAttribute("stroke","#1e1e1e");bg.setAttribute("stroke-width","1");
+  Object.entries({cx:SCX,cy:SCY,r:SR+12,fill:bgC,stroke:isDark?"#1e1e1e":"#d0d0d0","stroke-width":"1"}).forEach(([k,v])=>bg.setAttribute(k,v));
   svg.appendChild(bg);
 
-  // Track arc (gray)
+  // Track
   const track=document.createElementNS(SVG_NS,"path");
-  track.setAttribute("d",arcPath(SR,135,405));
-  track.setAttribute("fill","none");track.setAttribute("stroke","#1e1e1e");track.setAttribute("stroke-width","14");track.setAttribute("stroke-linecap","round");
+  track.setAttribute("d",arcP(SR,135,405));
+  Object.entries({fill:"none",stroke:trackC,"stroke-width":"13","stroke-linecap":"round"}).forEach(([k,v])=>track.setAttribute(k,v));
   svg.appendChild(track);
 
-  // Color zones: green 135→225 (0–60), yellow 225→285 (60–100), red 285→405 (100–160)
-  const z0=135+270*(60/MAX_SPD), z1=135+270*(100/MAX_SPD);
-  const zones=[["#22c55e40",135,z0],["#eab30840",z0,z1],["#ef444440",z1,405]];
-  zones.forEach(([c,a1,a2])=>{
+  // Zones
+  const z0=135+270*(60/MAX_SPD),z1=135+270*(100/MAX_SPD);
+  [[isDark?"#22c55e30":"#22c55e20",135,z0],[isDark?"#eab30830":"#eab30820",z0,z1],[isDark?"#ef444430":"#ef444420",z1,405]].forEach(([c,a1,a2])=>{
     const z=document.createElementNS(SVG_NS,"path");
-    z.setAttribute("d",arcPath(SR,a1,a2));
-    z.setAttribute("fill","none");z.setAttribute("stroke",c);z.setAttribute("stroke-width","14");z.setAttribute("stroke-linecap","butt");
+    z.setAttribute("d",arcP(SR,a1,a2));
+    Object.entries({fill:"none",stroke:c,"stroke-width":"13","stroke-linecap":"butt"}).forEach(([k,v])=>z.setAttribute(k,v));
     svg.appendChild(z);
   });
 
-  // Active arc (dynamic) — starts empty, updated via JS
-  const actArc=document.createElementNS(SVG_NS,"path");
-  actArc.setAttribute("id","spdArc");
-  actArc.setAttribute("fill","none");actArc.setAttribute("stroke","#60a5fa");actArc.setAttribute("stroke-width","14");actArc.setAttribute("stroke-linecap","round");
-  svg.appendChild(actArc);
+  // Active arc
+  const act=document.createElementNS(SVG_NS,"path");
+  act.setAttribute("id","spdArc");
+  Object.entries({fill:"none",stroke:"#60a5fa","stroke-width":"13","stroke-linecap":"round"}).forEach(([k,v])=>act.setAttribute(k,v));
+  svg.appendChild(act);
 
-  // Ticks
-  const TICKS=[0,20,40,60,80,100,120,140,160];
-  TICKS.forEach(v=>{
+  // Ticks + labels
+  [0,20,40,60,80,100,120,140,160].forEach(v=>{
     const deg=135+(v/MAX_SPD)*270;
-    const isMaj=v%20===0;
-    const r1=SR-18, r2=SR-6;
-    const inner=p2c(r1,deg),outer=p2c(r2,deg);
+    const iM=v%40===0;
+    const inner=p2c(SR-17,deg),outer=p2c(SR-5,deg);
     const t=document.createElementNS(SVG_NS,"line");
-    t.setAttribute("x1",inner.x);t.setAttribute("y1",inner.y);
-    t.setAttribute("x2",outer.x);t.setAttribute("y2",outer.y);
-    t.setAttribute("stroke",isMaj?"#555":"#333");t.setAttribute("stroke-width",isMaj?2:1);
+    Object.entries({x1:inner.x,y1:inner.y,x2:outer.x,y2:outer.y,stroke:iM?(isDark?"#555":"#bbb"):(isDark?"#333":"#ddd"),"stroke-width":iM?2:1}).forEach(([k,v])=>t.setAttribute(k,String(v)));
     svg.appendChild(t);
-    // Label every 40
-    if(v%40===0){
+    if(iM){
       const lp=p2c(SR-30,deg);
       const lbl=document.createElementNS(SVG_NS,"text");
-      lbl.setAttribute("x",lp.x);lbl.setAttribute("y",lp.y+4);
-      lbl.setAttribute("text-anchor","middle");lbl.setAttribute("fill","#444");
-      lbl.setAttribute("font-size","10");lbl.setAttribute("font-family","monospace");
-      lbl.textContent=v;
-      svg.appendChild(lbl);
+      Object.entries({x:lp.x,y:lp.y+4,"text-anchor":"middle",fill:textC,"font-size":"10","font-family":"monospace"}).forEach(([k,v])=>lbl.setAttribute(k,v));
+      lbl.textContent=v;svg.appendChild(lbl);
     }
   });
 
   // Needle
   const needle=document.createElementNS(SVG_NS,"line");
   needle.setAttribute("id","spdNeedle");
-  needle.setAttribute("x1",SCX);needle.setAttribute("y1",SCY);
-  const np=p2c(SR-18,135);
-  needle.setAttribute("x2",np.x);needle.setAttribute("y2",np.y);
-  needle.setAttribute("stroke","#60a5fa");needle.setAttribute("stroke-width","2.5");needle.setAttribute("stroke-linecap","round");
+  const np=p2c(SR-17,135);
+  Object.entries({x1:SCX,y1:SCY,x2:np.x,y2:np.y,stroke:"#60a5fa","stroke-width":"2.5","stroke-linecap":"round"}).forEach(([k,v])=>needle.setAttribute(k,v));
   needle.style.transformOrigin=`${SCX}px ${SCY}px`;
   svg.appendChild(needle);
 
   // Center cap
   const cap=document.createElementNS(SVG_NS,"circle");
-  cap.setAttribute("cx",SCX);cap.setAttribute("cy",SCY);cap.setAttribute("r","8");
-  cap.setAttribute("fill","#60a5fa");
+  Object.entries({cx:SCX,cy:SCY,r:"8",fill:"#60a5fa"}).forEach(([k,v])=>cap.setAttribute(k,v));
   svg.appendChild(cap);
 
-  // Label
+  // label
   const lbl=document.createElementNS(SVG_NS,"text");
-  lbl.setAttribute("x",SCX);lbl.setAttribute("y",SCY+32);
-  lbl.setAttribute("text-anchor","middle");lbl.setAttribute("fill","#333");
-  lbl.setAttribute("font-size","10");lbl.setAttribute("font-family","monospace");
-  lbl.textContent="km/h";
-  svg.appendChild(lbl);
+  Object.entries({x:SCX,y:SCY+30,"text-anchor":"middle",fill:textC,"font-size":"10","font-family":"monospace"}).forEach(([k,v])=>lbl.setAttribute(k,v));
+  lbl.textContent="km/h";svg.appendChild(lbl);
 }
 
-function updateSpeedometer(spd){
+function updateSpeedo(spd){
   const pct=Math.min(spd/MAX_SPD,1);
-  const endDeg=135+pct*270;
+  const endD=135+pct*270;
   const needle=$("spdNeedle");
-  const ep=p2c(SR-18,endDeg);
+  const ep=p2c(SR-17,endD);
   needle.setAttribute("x2",ep.x);needle.setAttribute("y2",ep.y);
-
-  // Arc color zones
   const arc=$("spdArc");
   if(pct<0.001){arc.setAttribute("d","");return}
-  arc.setAttribute("d",arcPath(SR,135,endDeg));
+  arc.setAttribute("d",arcP(SR,135,endD));
   const color=spd<60?"#22c55e":spd<100?"#eab308":"#ef4444";
   arc.setAttribute("stroke",color);
-  arc.style.filter=`drop-shadow(0 0 6px ${color})`;
-
-  // Digital
-  const dig=$("speedDigital");
-  dig.textContent=Math.round(spd);
-  dig.style.color=color;
+  arc.style.filter=`drop-shadow(0 0 5px ${color})`;
+  $("speedDigital").textContent=Math.round(spd);
+  $("speedDigital").style.color=color;
 }
 
 /* ══════════════════════════════════════
    GPS TRACKING
 ══════════════════════════════════════ */
-function toggleTrack(){
-  tracking?stopTrack():startTrack();
-}
+function toggleTrack(){tracking?stopTrack():startTrack()}
 
 function startTrack(){
-  if(!("geolocation" in navigator)){
-    alert("Browser ini tidak mendukung GPS.");return;
-  }
-  // Reset
-  tripDist=0;tripSec=0;tripMaxSpd=0;tripSpdSum=0;tripSpdCount=0;
-  lastLat=null;lastLon=null;lastTime=null;currentSpeed=0;
-  updateStats();updateSpeedometer(0);
-
+  if(!("geolocation" in navigator)){alert("Browser tidak mendukung GPS.");return}
+  tripDist=0;tripSec=0;tripMax=0;tripSpdSum=0;tripSpdN=0;
+  lastLa=null;lastLo=null;lastT=null;
+  updateStats();updateSpeedo(0);
+  $("speedDigital").textContent="0";
+  $("speedDigital").style.color="var(--blue)";
   tracking=true;
   $("trackBtn").textContent="⏹ Stop Perjalanan";
   $("trackBtn").className="track-btn stop";
   $("gpsDot").classList.add("active");
   $("gpsStatusTxt").textContent="Menunggu sinyal GPS...";
-
-  // Timer
-  timerInt=setInterval(()=>{tripSec++;$("tWaktu").textContent=fmtTime(tripSec)},1000);
-
-  // Watch position
-  watchId=navigator.geolocation.watchPosition(
-    onPos,
-    onGpsErr,
-    {enableHighAccuracy:true,maximumAge:1000,timeout:10000}
-  );
+  timerInt=setInterval(()=>{tripSec++;$("tWaktu").textContent=fmtT(tripSec)},1000);
+  watchId=navigator.geolocation.watchPosition(onPos,onGpsErr,{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
 }
 
 function stopTrack(){
@@ -900,8 +992,8 @@ function stopTrack(){
   $("trackBtn").textContent="▶ Mulai Perjalanan";
   $("trackBtn").className="track-btn start";
   $("gpsDot").classList.remove("active");
-  $("gpsStatusTxt").textContent="Perjalanan selesai — "+fmtTime(tripSec);
-  updateSpeedometer(0);
+  $("gpsStatusTxt").textContent="Selesai — "+fmtT(tripSec);
+  updateSpeedo(0);
   $("speedDigital").textContent="0";
   $("speedDigital").style.color="var(--blue)";
 }
@@ -909,50 +1001,35 @@ function stopTrack(){
 function onPos(pos){
   const{latitude:la,longitude:lo,speed:spd,accuracy:acc}=pos.coords;
   $("gpsStatusTxt").textContent=`GPS aktif — akurasi ±${Math.round(acc)}m`;
-
-  // Speed
   let kmh=0;
-  if(spd!=null&&spd>=0){
-    kmh=spd*3.6; // m/s → km/h
-  } else if(lastLat!=null&&lastTime!=null){
-    const d=haversine(lastLat,lastLon,la,lo);
-    const dt=(Date.now()-lastTime)/3600000;
+  if(spd!=null&&spd>=0) kmh=spd*3.6;
+  else if(lastLa!=null&&lastT!=null){
+    const d=haversine(lastLa,lastLo,la,lo);
+    const dt=(Date.now()-lastT)/3600000;
     kmh=dt>0?d/dt:0;
   }
   kmh=Math.max(0,Math.min(kmh,MAX_SPD));
-  currentSpeed=kmh;
-
-  // Distance
-  if(lastLat!=null){
-    const seg=haversine(lastLat,lastLon,la,lo);
-    if(seg<0.5) tripDist+=seg; // ignore GPS jumps >500m
+  if(lastLa!=null){
+    const seg=haversine(lastLa,lastLo,la,lo);
+    if(seg<0.5) tripDist+=seg;
   }
-
-  // Stats
-  if(kmh>0){tripSpdSum+=kmh;tripSpdCount++}
-  if(kmh>tripMaxSpd) tripMaxSpd=kmh;
-  lastLat=la;lastLon=lo;lastTime=Date.now();
-
-  updateSpeedometer(kmh);
-  $("speedDigital").textContent=Math.round(kmh);
+  if(kmh>0){tripSpdSum+=kmh;tripSpdN++}
+  if(kmh>tripMax) tripMax=kmh;
+  lastLa=la;lastLo=lo;lastT=Date.now();
+  updateSpeedo(kmh);
   updateStats();
 }
 
-function onGpsErr(e){
-  $("gpsStatusTxt").textContent="GPS error: "+e.message;
-}
+function onGpsErr(e){$("gpsStatusTxt").textContent="GPS error: "+e.message}
 
 function updateStats(){
   $("tJarak").textContent=tripDist.toFixed(2);
-  $("tMaks").textContent=Math.round(tripMaxSpd);
-  $("tAvg").textContent=tripSpdCount>0?Math.round(tripSpdSum/tripSpdCount):0;
-
-  const litrPakai=konsumsi>0?tripDist/konsumsi:0;
-  $("tFuel").textContent=litrPakai.toFixed(2);
-
+  $("tMaks").textContent=Math.round(tripMax);
+  $("tAvg").textContent=tripSpdN>0?Math.round(tripSpdSum/tripSpdN):0;
+  const litrP=konsumsi>0?tripDist/konsumsi:0;
+  $("tFuel").textContent=litrP.toFixed(2);
   if(budget>0&&harga>0){
-    const biayaP=litrPakai*harga;
-    const sisa=budget-biayaP;
+    const sisa=budget-(litrP*harga);
     $("tSisa").textContent=sisa>=0?rp(Math.round(sisa)):"–"+rp(Math.round(-sisa));
     $("tSisa").style.color=sisa>=0?"var(--green)":"var(--red)";
     $("tSisaSub").textContent=sisa>=0?"tersisa":"kurang";
@@ -967,8 +1044,19 @@ function updateStats(){
 ══════════════════════════════════════ */
 let deferredPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
-  e.preventDefault();deferredPrompt=e;
-  $("installBanner").style.display="flex";
+  e.preventDefault();
+  deferredPrompt=e;
+  // Tampilkan banner setelah 3 detik supaya app sudah terasa loaded
+  setTimeout(()=>{
+    const b=$("installBanner");
+    b.style.display="flex";
+    // Auto-hide setelah 12 detik kalau user tidak interaksi
+    setTimeout(()=>{b.style.display="none"},12000);
+  },3000);
+});
+window.addEventListener("appinstalled",()=>{
+  $("installBanner").style.display="none";
+  deferredPrompt=null;
 });
 function doInstall(){
   if(!deferredPrompt) return;
@@ -989,6 +1077,22 @@ if("serviceWorker" in navigator){
 /* ══════════════════════════════════════
    INIT
 ══════════════════════════════════════ */
+// Restore theme
+const savedTheme=localStorage.getItem("bbm-theme")||"dark";
+isDark=savedTheme==="dark";
+document.documentElement.setAttribute("data-theme",savedTheme);
+if(!isDark){
+  ["themeIcon","themeIcon2"].forEach(i=>{$(i).textContent="☀️"});
+  ["themeTxt","themeTxt2"].forEach(i=>{$(i).textContent="Dark"});
+  $("themeColorMeta").content="#f5f5f5";
+}
+
+// Restore saved harga
+const savedHarga=localStorage.getItem("bbm-harga");
+const savedUpdate=localStorage.getItem("bbm-update");
+if(savedHarga){try{FUEL=JSON.parse(savedHarga)}catch(e){}}
+if(savedUpdate) $("lastUpdate").textContent=savedUpdate;
+
 buildFuel();buildKen();buildQuick();
 updateFuelBar();updateKBar();
 buildSpeedometer();
