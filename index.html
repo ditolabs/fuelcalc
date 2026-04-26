@@ -503,36 +503,14 @@ async function refreshHarga(){
 function setSt(t,h){const e=$("mapsSt");e.className="maps-st "+t;e.innerHTML=h}
 function onMI(){$("mapsSt").className="maps-st"; mapsKm=null;mapsLabel="";}
 async function fetchDist(){
-  let url=$("mapsUrl").value.trim(); const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
+  const url=$("mapsUrl").value.trim(); const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
   if(!url && (!asal||!tj)) return;
   setSt("ld","⏳ Memproses rute..."); $("mapsBtn").disabled=true;
   try {
     let oStr="", dStr="";
     if(url) {
-      // Resolve shortened link (maps.app.goo.gl / goo.gl) via CORS proxy
-      if(url.includes("goo.gl") || url.includes("maps.app")){
-        setSt("ld","⏳ Membuka link pendek...");
-        try{
-          const proxyRes=await fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
-          const proxyData=await proxyRes.json();
-          // allorigins returns the final URL after redirect in status.url
-          const finalUrl=proxyData?.status?.url||"";
-          if(finalUrl && finalUrl.includes("/maps/dir/")){
-            url=finalUrl;
-          } else {
-            // Try to extract redirect URL from response body
-            const bodyMatch=(proxyData?.contents||"").match(/https:\/\/www\.google\.com\/maps\/dir\/[^"'\s]*/);
-            if(bodyMatch) url=bodyMatch[0];
-            else throw "Link pendek tidak bisa dibuka. Gunakan 'Salin link' dari tombol Share Google Maps (link panjang).";
-          }
-        }catch(e){
-          if(typeof e==="string") throw e;
-          throw "Gagal membuka link pendek. Coba gunakan link panjang dari tombol Share.";
-        }
-      }
-
       const m=url.match(/\/maps\/dir\/([^@]+?)(?:\/@|$)/);
-      if(!m) throw "Format link Maps tidak dikenali. Pastikan link berupa rute (Directions), bukan pin lokasi.";
+      if(!m){throw "Format link Maps salah."}
       const pts=m[1].split("/").map(p=>decodeURIComponent(p).replace(/\+/g," ").trim()).filter(p=>p);
       oStr=pts[0]; dStr=pts[pts.length-1];
     } else { oStr=asal; dStr=tj; }
@@ -555,38 +533,65 @@ async function fetchDist(){
 function isCoord(s){return /^-?\d+\.?\d*,-?\d+\.?\d*$/.test(s.trim())}
 
 function stripPlusCode(s){
-  // Hapus Plus Code (contoh: 39HP+9WM atau 39HP%2B9WM)
-  return s.replace(/[23456789CFGHJMPQRVWX]{4,6}[+%2B]{1,3}[23456789CFGHJMPQRVWX]{2,3}/gi,"")
+  return s.replace(/\b[23456789CFGHJMPQRVWX]{4,6}[+][23456789CFGHJMPQRVWX]{2,3}\b/gi,"")
+          .replace(/[0-9A-Z]{4,6}%2B[0-9A-Z]{2,3}/gi,"")
           .replace(/,\s*,/g,",").replace(/^\s*,|,\s*$/g,"").trim();
-}
-
-async function nominatim(q){
-  if(!q||q.length<2) return null;
-  try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,{headers:{"Accept-Language":"id","User-Agent":"BBM-Tracker/1.0"}});
-    const d=await r.json();
-    return d&&d.length?{la:+d[0].lat,lo:+d[0].lon}:null;
-  }catch(e){return null}
 }
 
 async function geo(p){
   const s=p.trim();
-  // 1. Koordinat langsung — tidak perlu Nominatim
-  if(isCoord(s)){const[la,lo]=s.split(",").map(Number);return{la,lo}}
-  // 2. Coba query lengkap (setelah strip Plus Code)
+
+  // Koordinat langsung — tidak perlu geocoding sama sekali
+  if(isCoord(s)){
+    const[la,lo]=s.split(",").map(Number);
+    return{la,lo};
+  }
+
+  // Bersihkan Plus Code dari alamat
   const cleaned=stripPlusCode(s);
-  let res=await nominatim(cleaned);
-  if(res) return res;
-  // 3. Fallback: nama lokasi saja (sebelum koma pertama)
   const short=cleaned.split(",")[0].trim();
-  res=await nominatim(short);
-  if(res) return res;
-  // 4. Fallback terakhir: query original tanpa modifikasi
-  return await nominatim(s);
+
+  // Coba Photon (Komoot) — CORS terbuka, tidak butuh API key
+  async function photon(q){
+    try{
+      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=id`,{signal:AbortSignal.timeout(7000)});
+      const d=await r.json();
+      if(d.features&&d.features.length){
+        const[lo,la]=d.features[0].geometry.coordinates;
+        return{la,lo};
+      }
+    }catch(e){}
+    return null;
+  }
+
+  // Coba Nominatim via CORS proxy (fallback)
+  async function nominatimProxy(q){
+    try{
+      const url="https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(q)+"&format=json&limit=1&accept-language=id";
+      const r=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
+      const d=await r.json();
+      return d&&d.length?{la:+d[0].lat,lo:+d[0].lon}:null;
+    }catch(e){return null}
+  }
+
+  // Urutan: Photon (full) → Photon (short) → Nominatim proxy (full) → Nominatim proxy (short)
+  return (await photon(cleaned))
+      || (await photon(short))
+      || (await nominatimProxy(cleaned))
+      || (await nominatimProxy(short))
+      || null;
 }
+
 async function osrm({la:la1,lo:lo1},{la:la2,lo:lo2}){
-  const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`);
-  const d=await r.json(); return d.code==="Ok"?d.routes[0].distance/1000:null;
+  // Coba OSRM public server
+  try{
+    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`,{signal:AbortSignal.timeout(10000)});
+    const d=await r.json();
+    if(d.code==="Ok"&&d.routes[0]) return d.routes[0].distance/1000;
+  }catch(e){}
+  // Fallback: hitung jarak lurus Haversine × 1.3 (estimasi jalan)
+  const km=haversine(la1,lo1,la2,lo2)*1.3;
+  return km>0?km:null;
 }
 
 /* ════ LOGIKA ESTIMASI (FAKTOR KOREKSI) ════ */
@@ -639,65 +644,31 @@ function drawMG(id,pct,color,lbl){
 /* ════ GPS & WAKE LOCK ════ */
 function p2c(r,deg){const rad=deg*Math.PI/180;return{x:150+r*Math.cos(rad),y:138+r*Math.sin(rad)}}
 function arcP(r,a1,a2){const s=p2c(r,a1),e=p2c(r,a2);return `M${s.x} ${s.y}A${r} ${r} 0 ${(a2-a1)>180?1:0} 1 ${e.x} ${e.y}`;}
-function svgEl(tag, attrs){
-  const el=document.createElementNS("http://www.w3.org/2000/svg", tag);
+function svgEl(tag,attrs){
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
   Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
   return el;
 }
 function buildSpeedometer(){
   const s=$("speedoSvg"); s.innerHTML="";
-  const trackC=isDark?"#1e1e1e":"#e0e0e0";
-  const textC =isDark?"#444":"#bbb";
-  const bgC   =isDark?"#0d0d0d":"#f0f0f0";
-  const bgSt  =isDark?"#1e1e1e":"#d0d0d0";
-
-  // Background circle
+  const trackC=isDark?"#1e1e1e":"#e0e0e0", textC=isDark?"#444":"#bbb";
+  const bgC=isDark?"#0d0d0d":"#f0f0f0", bgSt=isDark?"#1e1e1e":"#d0d0d0";
   s.appendChild(svgEl("circle",{cx:150,cy:138,r:124,fill:bgC,stroke:bgSt,"stroke-width":1}));
-
-  // Track arc (gray)
   s.appendChild(svgEl("path",{d:arcP(112,135,405),fill:"none",stroke:trackC,"stroke-width":13,"stroke-linecap":"round"}));
-
-  // Color zones: green 0-60, yellow 60-100, red 100-160
-  const z0=135+270*(60/MAX_SPD), z1=135+270*(100/MAX_SPD);
-  [
-    [isDark?"#22c55e28":"#22c55e18", 135, z0],
-    [isDark?"#eab30828":"#eab30818", z0,  z1],
-    [isDark?"#ef444428":"#ef444418", z1,  405]
-  ].forEach(([c,a1,a2])=>{
-    s.appendChild(svgEl("path",{d:arcP(112,a1,a2),fill:"none",stroke:c,"stroke-width":13,"stroke-linecap":"butt"}));
-  });
-
-  // Active arc (updated on speed change)
+  const z0=135+270*(60/MAX_SPD),z1=135+270*(100/MAX_SPD);
+  [[isDark?"#22c55e28":"#22c55e18",135,z0],[isDark?"#eab30828":"#eab30818",z0,z1],[isDark?"#ef444428":"#ef444418",z1,405]]
+    .forEach(([c,a1,a2])=>s.appendChild(svgEl("path",{d:arcP(112,a1,a2),fill:"none",stroke:c,"stroke-width":13,"stroke-linecap":"butt"})));
   s.appendChild(svgEl("path",{id:"spdArc",d:"",fill:"none",stroke:"#60a5fa","stroke-width":13,"stroke-linecap":"round"}));
-
-  // Tick marks & labels
   [0,20,40,60,80,100,120,140,160].forEach(v=>{
-    const deg=135+(v/MAX_SPD)*270;
-    const isMaj=(v%40===0);
-    const inner=p2c(isMaj?95:99,deg), outer=p2c(111,deg);
-    s.appendChild(svgEl("line",{
-      x1:inner.x,y1:inner.y,x2:outer.x,y2:outer.y,
-      stroke:isMaj?(isDark?"#555":"#aaa"):(isDark?"#333":"#ccc"),
-      "stroke-width":isMaj?2:1
-    }));
-    if(isMaj){
-      const lp=p2c(80,deg);
-      const lbl=svgEl("text",{x:lp.x,y:lp.y+4,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});
-      lbl.textContent=v;
-      s.appendChild(lbl);
-    }
+    const deg=135+(v/MAX_SPD)*270, isMaj=(v%40===0);
+    const inn=p2c(isMaj?95:99,deg),out=p2c(111,deg);
+    s.appendChild(svgEl("line",{x1:inn.x,y1:inn.y,x2:out.x,y2:out.y,stroke:isMaj?(isDark?"#555":"#aaa"):(isDark?"#333":"#ccc"),"stroke-width":isMaj?2:1}));
+    if(isMaj){const lp=p2c(80,deg);const t=svgEl("text",{x:lp.x,y:lp.y+4,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});t.textContent=v;s.appendChild(t);}
   });
-
-  // Needle
   const np=p2c(95,135);
   s.appendChild(svgEl("line",{id:"spdNeedle",x1:150,y1:138,x2:np.x,y2:np.y,stroke:"#60a5fa","stroke-width":2.5,"stroke-linecap":"round"}));
-
-  // Center cap
   s.appendChild(svgEl("circle",{cx:150,cy:138,r:8,fill:"#60a5fa"}));
-
-  // km/h label
-  const lbl=svgEl("text",{x:150,y:168,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});
-  lbl.textContent="km/h"; s.appendChild(lbl);
+  const lt=svgEl("text",{x:150,y:168,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});lt.textContent="km/h";s.appendChild(lt);
 }
 
 async function reqWL(){try{wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
