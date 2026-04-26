@@ -1,9 +1,9 @@
-const CACHE = 'bbm-v1';
+const CACHE = 'bbm-v2';
 const ASSETS = [
-  '/kalkulator-bbm/',
-  '/kalkulator-bbm/index.html',
-  '/kalkulator-bbm/manifest.json',
-  '/kalkulator-bbm/icon.svg'
+  '/fuelcalc/',
+  '/fuelcalc/index.html',
+  '/fuelcalc/manifest.json',
+  '/fuelcalc/icon.svg'
 ];
 
 self.addEventListener('install', e => {
