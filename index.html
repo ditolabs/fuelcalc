@@ -690,8 +690,7 @@ function hapusRiwayat(id){
   localStorage.setItem('bbm-history', JSON.stringify(h));
   renderHistory();
 }
-<script>
-	/* ════ PWA INSTALL ════ */
+/* ════ PWA INSTALL ════ */
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
@@ -718,8 +717,6 @@ function doInstall() {
     if(b) b.style.display = "none";
   });
 }
-</script>
-<script>
 /* ════ INIT ════ */
 isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
