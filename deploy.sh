@@ -2,16 +2,16 @@
 # ═══════════════════════════════════════════════════
 #  deploy.sh — Upload file BBM Tracker ke GitHub
 #  Cara pakai:
-#    chmod +x deploy.sh   (sekali saja)
+#    chmod +x deploy.sh
 #    ./deploy.sh
 # ═══════════════════════════════════════════════════
 
-GITHUB_USER="ShadowSoldiers"
-REPO="kalkulator-bbm"
+# Sesuaikan dengan akun dan nama repo Anda
+GITHUB_USER="ditolabs"
+REPO="fuelcalc"
 BRANCH="main"
 FILES=("index.html" "manifest.json" "sw.js" "icon.svg")
 
-# ── Minta token ──
 echo ""
 echo "╔══════════════════════════════════════╗"
 echo "║       BBM Tracker — Deploy Tool      ║"
@@ -25,14 +25,19 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
+# Set standard API Headers untuk GitHub API v3
+HEADER_AUTH="Authorization: Bearer $TOKEN"
+HEADER_ACCEPT="Accept: application/vnd.github+json"
+HEADER_VERSION="X-GitHub-Api-Version: 2022-11-28"
+
 # ── Cek token valid ──
 echo "🔑 Mengecek token..."
 USER_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token $TOKEN" \
+  -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
   https://api.github.com/user)
 
 if [ "$USER_CHECK" != "200" ]; then
-  echo "❌ Token tidak valid atau tidak punya akses (HTTP $USER_CHECK)."
+  echo "❌ Token tidak valid atau tidak punya izin (HTTP $USER_CHECK)."
   exit 1
 fi
 echo "✅ Token valid."
@@ -40,26 +45,24 @@ echo "✅ Token valid."
 # ── Cek repo ada ──
 echo "📦 Mengecek repo $GITHUB_USER/$REPO..."
 REPO_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token $TOKEN" \
-  https://api.github.com/$GITHUB_USER/$REPO 2>/dev/null || \
-  curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token $TOKEN" \
+  -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
   https://api.github.com/repos/$GITHUB_USER/$REPO)
 
 if [ "$REPO_CHECK" = "404" ]; then
   echo "⚠️  Repo belum ada. Membuat repo baru..."
   CREATE=$(curl -s -w "\n%{http_code}" \
-    -H "Authorization: token $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{\"name\":\"$REPO\",\"description\":\"BBM Tracker PWA\",\"private\":false,\"auto_init\":true}" \
+    -X POST \
+    -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
+    -d "{\"name\":\"$REPO\",\"description\":\"BBM Tracker Estimator\",\"private\":false,\"auto_init\":true}" \
     https://api.github.com/user/repos)
+  
   STATUS=$(echo "$CREATE" | tail -1)
   if [ "$STATUS" != "201" ]; then
     echo "❌ Gagal membuat repo (HTTP $STATUS)."
     exit 1
   fi
   echo "✅ Repo berhasil dibuat."
-  sleep 2 # tunggu GitHub siapkan repo
+  sleep 3 # Waktu tunggu agar GitHub selesai inisialisasi repo
 fi
 
 # ── Upload setiap file ──
@@ -69,50 +72,48 @@ FAIL=0
 
 for FILE in "${FILES[@]}"; do
   if [ ! -f "$FILE" ]; then
-    echo "  ⚠️  $FILE tidak ditemukan, dilewati."
+    echo "  ⚠️  $FILE tidak ditemukan di folder lokal, dilewati."
     continue
   fi
 
-  # Encode file ke base64
-  CONTENT=$(base64 -w 0 "$FILE" 2>/dev/null || base64 "$FILE")
+  # Encode file ke base64 (tanpa newline untuk menghindari JSON error)
+  CONTENT=$(base64 -w 0 "$FILE" 2>/dev/null || base64 "$FILE" | tr -d '\n')
 
-  # Cek apakah file sudah ada (untuk dapat SHA-nya)
+  # Dapatkan SHA dari file yang sudah ada (jika ada, untuk proses update)
   EXISTING=$(curl -s \
-    -H "Authorization: token $TOKEN" \
+    -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
     https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$FILE)
 
   SHA=$(echo "$EXISTING" | grep '"sha"' | head -1 | sed 's/.*"sha": *"\([^"]*\)".*/\1/')
 
-  # Susun payload
+  # Susun JSON payload
   if [ -n "$SHA" ]; then
-    PAYLOAD="{\"message\":\"update $FILE\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\",\"branch\":\"$BRANCH\"}"
+    PAYLOAD="{\"message\":\"Update $FILE via script\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\",\"branch\":\"$BRANCH\"}"
   else
-    PAYLOAD="{\"message\":\"add $FILE\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\"}"
+    PAYLOAD="{\"message\":\"Add $FILE via script\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\"}"
   fi
 
-  # Upload
+  # Upload / Update
   RESULT=$(curl -s -o /dev/null -w "%{http_code}" \
     -X PUT \
-    -H "Authorization: token $TOKEN" \
-    -H "Content-Type: application/json" \
+    -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
     -d "$PAYLOAD" \
     https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$FILE)
 
   if [ "$RESULT" = "200" ] || [ "$RESULT" = "201" ]; then
-    echo "  ✅ $FILE"
+    echo "  ✅ $FILE berhasil di-push."
   else
-    echo "  ❌ $FILE (HTTP $RESULT)"
+    echo "  ❌ $FILE gagal (HTTP $RESULT)."
     FAIL=1
   fi
 done
 
-# ── Aktifkan GitHub Pages (jika belum) ──
+# ── Aktifkan GitHub Pages (jika belum aktif) ──
 echo ""
-echo "🌐 Mengaktifkan GitHub Pages..."
+echo "🌐 Mengecek/Mengaktifkan GitHub Pages..."
 PAGES=$(curl -s -o /dev/null -w "%{http_code}" \
   -X POST \
-  -H "Authorization: token $TOKEN" \
-  -H "Content-Type: application/json" \
+  -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
   -d "{\"source\":{\"branch\":\"$BRANCH\",\"path\":\"/\"}}" \
   https://api.github.com/repos/$GITHUB_USER/$REPO/pages)
 
@@ -121,18 +122,18 @@ if [ "$PAGES" = "201" ]; then
 elif [ "$PAGES" = "409" ]; then
   echo "✅ GitHub Pages sudah aktif sebelumnya."
 else
-  echo "⚠️  Pages mungkin perlu diaktifkan manual di Settings → Pages (HTTP $PAGES)."
+  echo "⚠️  (HTTP $PAGES) Anda mungkin perlu mengaktifkan Pages secara manual di Pengaturan Repo GitHub Anda."
 fi
 
 # ── Selesai ──
 echo ""
 if [ "$FAIL" = "0" ]; then
-  echo "🎉 Semua file berhasil diupload!"
+  echo "🎉 Semua file berhasil dideploy ke GitHub!"
 else
-  echo "⚠️  Beberapa file gagal diupload. Coba lagi."
+  echo "⚠️  Ada file yang gagal diupload. Silakan cek pesan error di atas."
 fi
 
 echo ""
-echo "🔗 URL app: https://$GITHUB_USER.github.io/$REPO/"
-echo "   (GitHub Pages butuh ~1-2 menit untuk deploy)"
+echo "🔗 Cek aplikasi Anda di: https://$GITHUB_USER.github.io/$REPO/"
+echo "   (Beri waktu sekitar 1-2 menit untuk GitHub memproses perubahan)"
 echo ""

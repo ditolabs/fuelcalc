@@ -1,5 +1,5 @@
 {
-  "name": "Fuel Calculator",
+  "name": "Kalkulator BBM",
   "short_name": "BBM Tracker",
   "description": "Hitung biaya BBM dan lacak perjalanan secara realtime",
   "start_url": "/fuelcalc/",
@@ -8,6 +8,15 @@
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "orientation": "portrait",
+  "share_target": {
+    "action": "/fuelcalc/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
