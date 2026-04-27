@@ -277,13 +277,8 @@ input:focus{border-color:var(--accent)}
     </div>
 
     <div class="maps-box">
-      <div class="maps-title" style="font-size:10px;color:var(--mut);margin-bottom:8px">📍 Estimasi Jarak Rute</div>
-      <div class="or" style="margin-top:0">Paste Link Google Maps</div>
-      <input type="url" id="mapsUrl" placeholder="Link rute (opsional)..." oninput="onMI()">
-      
-      <div class="or">Atau Cari Otomatis</div>
-      <div class="irow"><input type="text" id="asalIn" placeholder="Asal (Misal: Surabaya)"><input type="text" id="tujuanIn" placeholder="Tujuan (Misal: Banyuwangi)"></div>
-      
+      <div class="maps-title" style="font-size:10px;color:var(--mut);margin-bottom:10px">📍 Estimasi Jarak Rute</div>
+      <div class="irow"><input type="text" id="asalIn" placeholder="Asal (contoh: Surabaya)"><input type="text" id="tujuanIn" placeholder="Tujuan (contoh: Banyuwangi)"></div>
       <button class="maps-btn" id="mapsBtn" onclick="fetchDist()">Cari Jarak & Hitung</button>
       <div class="maps-st" id="mapsSt"></div>
     </div>
@@ -501,115 +496,64 @@ async function refreshHarga(){
 
 /* ════ MAPS LOGIC ════ */
 function setSt(t,h){const e=$("mapsSt");e.className="maps-st "+t;e.innerHTML=h}
-function onMI(){$("mapsSt").className="maps-st"; mapsKm=null;mapsLabel="";}
 async function fetchDist(){
-  let url=$("mapsUrl").value.trim(); const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
-  if(!url && (!asal||!tj)) return;
-  setSt("ld","⏳ Memproses rute..."); $("mapsBtn").disabled=true;
-  try {
-    let oStr="", dStr="";
-    if(url) {
-      // Resolve link pendek goo.gl / maps.app.goo.gl
-      if(url.includes("goo.gl") || url.includes("maps.app")){
-        setSt("ld","⏳ Membuka link pendek...");
-        try{
-          const proxy=await fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url),{signal:AbortSignal.timeout(9000)});
-          const pdata=await proxy.json();
-          // Cari URL panjang Google Maps di dalam response
-          const finalUrl=pdata?.status?.url||"";
-          const bodyMatch=(pdata?.contents||"").match(/https:\/\/www\.google\.com\/maps\/dir\/[^"'\s\\]*/);
-          if(finalUrl.includes("/maps/dir/")) url=finalUrl;
-          else if(bodyMatch) url=bodyMatch[0];
-          else throw "redirect";
-        }catch(e){
-          throw "Link pendek tidak bisa dibuka otomatis. Silakan buka link di browser → copy URL panjang dari address bar, atau gunakan kolom Asal & Tujuan di bawah.";
-        }
-      }
-
-      const m=url.match(/\/maps\/dir\/([^@]+?)(?:\/@|$)/);
-      if(!m) throw "Format link tidak dikenali. Pastikan link berupa rute (Directions), bukan pin lokasi.";
-      const pts=m[1].split("/").map(p=>decodeURIComponent(p).replace(/\+/g," ").trim()).filter(p=>p);
-      oStr=pts[0]; dStr=pts[pts.length-1];
-    } else { oStr=asal; dStr=tj; }
-
-    setSt("ld",`⏳ Mencari: <b>${oStr}</b> → <b>${dStr}</b>`);
-    const [oc,dc]=await Promise.all([geo(oStr),geo(dStr)]);
-    if(!oc) throw `Lokasi asal tidak ditemukan: "${oStr.split(",")[0]}"`;
-    if(!dc) throw `Lokasi tujuan tidak ditemukan: "${dStr.split(",")[0]}"`;
-
-    setSt("ld","⏳ Menghitung jarak...");
+  const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
+  if(!asal||!tj) return;
+  setSt("ld","⏳ Mencari lokasi..."); $("mapsBtn").disabled=true;
+  try{
+    setSt("ld",`⏳ Mencari: <b>${asal}</b> → <b>${tj}</b>`);
+    const [oc,dc]=await Promise.all([geo(asal),geo(tj)]);
+    if(!oc) throw `Lokasi asal tidak ditemukan: "${asal}". Coba nama kota/kabupaten yang lebih umum.`;
+    if(!dc) throw `Lokasi tujuan tidak ditemukan: "${tj}". Coba nama kota/kabupaten yang lebih umum.`;
+    setSt("ld","⏳ Menghitung jarak rute...");
     const km=await osrm(oc,dc);
-    if(!km) throw "Gagal menghitung rute.";
-
-    mapsKm=km; mapsLabel=`${oStr.split(",")[0]} → ${dStr.split(",")[0]}`;
+    if(!km) throw "Gagal menghitung rute. Coba lagi.";
+    mapsKm=km; mapsLabel=`${asal} → ${tj}`;
     setSt("ok",`✅ Jarak: <b>${km.toFixed(1)} km</b><br><span style="opacity:.8;font-size:11px">${mapsLabel}</span>`);
     hitung();
-  } catch(e) { setSt("err","❌ "+(typeof e==="string"?e:"Gagal. Periksa koneksi internet.")); }
+  }catch(e){ setSt("err","❌ "+(typeof e==="string"?e:"Gagal. Periksa koneksi internet.")); }
   $("mapsBtn").disabled=false;
 }
 
-function isCoord(s){return /^-?\d+\.?\d*,-?\d+\.?\d*$/.test(s.trim())}
-
-function stripPlusCode(s){
-  return s.replace(/\b[23456789CFGHJMPQRVWX]{4,6}[+][23456789CFGHJMPQRVWX]{2,3}\b/gi,"")
-          .replace(/[0-9A-Z]{4,6}%2B[0-9A-Z]{2,3}/gi,"")
-          .replace(/,\s*,/g,",").replace(/^\s*,|,\s*$/g,"").trim();
+/* Geocoder dengan 3 lapis fallback — tanpa AbortSignal (kompatibel semua Android) */
+async function fetchJson(url){
+  const r=await fetch(url); if(!r.ok) throw new Error("http "+r.status);
+  return r.json();
 }
 
-async function geo(p){
-  const s=p.trim();
-
-  // Koordinat langsung — tidak perlu geocoding sama sekali
-  if(isCoord(s)){
-    const[la,lo]=s.split(",").map(Number);
-    return{la,lo};
-  }
-
-  // Bersihkan Plus Code dari alamat
-  const cleaned=stripPlusCode(s);
-  const short=cleaned.split(",")[0].trim();
-
-  // Coba Photon (Komoot) — CORS terbuka, tidak butuh API key
-  async function photon(q){
-    try{
-      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=id`,{signal:AbortSignal.timeout(7000)});
-      const d=await r.json();
-      if(d.features&&d.features.length){
-        const[lo,la]=d.features[0].geometry.coordinates;
-        return{la,lo};
-      }
-    }catch(e){}
-    return null;
-  }
-
-  // Coba Nominatim via CORS proxy (fallback)
-  async function nominatimProxy(q){
-    try{
-      const url="https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(q)+"&format=json&limit=1&accept-language=id";
-      const r=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
-      const d=await r.json();
-      return d&&d.length?{la:+d[0].lat,lo:+d[0].lon}:null;
-    }catch(e){return null}
-  }
-
-  // Urutan: Photon (full) → Photon (short) → Nominatim proxy (full) → Nominatim proxy (short)
-  return (await photon(cleaned))
-      || (await photon(short))
-      || (await nominatimProxy(cleaned))
-      || (await nominatimProxy(short))
-      || null;
+async function geo(place){
+  const q=place.trim();
+  // 1. Photon (Komoot) — CORS terbuka, tidak butuh header khusus
+  try{
+    const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=id`);
+    if(d.features&&d.features.length){
+      const[lo,la]=d.features[0].geometry.coordinates; return{la,lo};
+    }
+  }catch(e){}
+  // 2. Photon dengan tambahan "Indonesia" supaya lebih spesifik
+  try{
+    const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q+" Indonesia")}&limit=1&lang=id`);
+    if(d.features&&d.features.length){
+      const[lo,la]=d.features[0].geometry.coordinates; return{la,lo};
+    }
+  }catch(e){}
+  // 3. Nominatim via CORS proxy (fallback terakhir)
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+", Indonesia")}&format=json&limit=1&countrycodes=id`;
+    const d=await fetchJson("https://api.allorigins.win/raw?url="+encodeURIComponent(url));
+    if(d&&d.length) return{la:+d[0].lat,lo:+d[0].lon};
+  }catch(e){}
+  return null;
 }
 
 async function osrm({la:la1,lo:lo1},{la:la2,lo:lo2}){
-  // Coba OSRM public server
+  // Coba OSRM routing
   try{
-    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`,{signal:AbortSignal.timeout(10000)});
-    const d=await r.json();
+    const d=await fetchJson(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`);
     if(d.code==="Ok"&&d.routes[0]) return d.routes[0].distance/1000;
   }catch(e){}
-  // Fallback: hitung jarak lurus Haversine × 1.3 (estimasi jalan)
-  const km=haversine(la1,lo1,la2,lo2)*1.3;
-  return km>0?km:null;
+  // Fallback: jarak lurus Haversine × 1.3
+  return haversine(la1,lo1,la2,lo2)*1.3||null;
 }
 
 /* ════ LOGIKA ESTIMASI (FAKTOR KOREKSI) ════ */
@@ -664,7 +608,7 @@ function p2c(r,deg){const rad=deg*Math.PI/180;return{x:150+r*Math.cos(rad),y:138
 function arcP(r,a1,a2){const s=p2c(r,a1),e=p2c(r,a2);return `M${s.x} ${s.y}A${r} ${r} 0 ${(a2-a1)>180?1:0} 1 ${e.x} ${e.y}`;}
 function svgEl(tag,attrs){
   const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
-  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,String(v)));
   return el;
 }
 function buildSpeedometer(){
@@ -679,14 +623,14 @@ function buildSpeedometer(){
   s.appendChild(svgEl("path",{id:"spdArc",d:"",fill:"none",stroke:"#60a5fa","stroke-width":13,"stroke-linecap":"round"}));
   [0,20,40,60,80,100,120,140,160].forEach(v=>{
     const deg=135+(v/MAX_SPD)*270, isMaj=(v%40===0);
-    const inn=p2c(isMaj?95:99,deg),out=p2c(111,deg);
+    const inn=p2c(isMaj?95:99,deg), out=p2c(111,deg);
     s.appendChild(svgEl("line",{x1:inn.x,y1:inn.y,x2:out.x,y2:out.y,stroke:isMaj?(isDark?"#555":"#aaa"):(isDark?"#333":"#ccc"),"stroke-width":isMaj?2:1}));
     if(isMaj){const lp=p2c(80,deg);const t=svgEl("text",{x:lp.x,y:lp.y+4,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});t.textContent=v;s.appendChild(t);}
   });
   const np=p2c(95,135);
   s.appendChild(svgEl("line",{id:"spdNeedle",x1:150,y1:138,x2:np.x,y2:np.y,stroke:"#60a5fa","stroke-width":2.5,"stroke-linecap":"round"}));
   s.appendChild(svgEl("circle",{cx:150,cy:138,r:8,fill:"#60a5fa"}));
-  const lt=svgEl("text",{x:150,y:168,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});lt.textContent="km/h";s.appendChild(lt);
+  const lt=svgEl("text",{x:150,y:170,"text-anchor":"middle",fill:textC,"font-size":10,"font-family":"monospace"});lt.textContent="km/h";s.appendChild(lt);
 }
 
 async function reqWL(){try{wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
@@ -729,11 +673,11 @@ function onPos(pos){
   $("spdNeedle").setAttribute("x2",ep.x); $("spdNeedle").setAttribute("y2",ep.y);
   if(kmh>1){
     $("spdArc").setAttribute("d",arcP(112,135,endDeg));
-    const sColor=kmh<60?"#22c55e":kmh<100?"#eab308":"#ef4444";
-    $("spdArc").setAttribute("stroke",sColor);
-    $("spdArc").style.filter=`drop-shadow(0 0 5px ${sColor})`;
-    $("speedDigital").style.color=sColor;
-  } else {
+    const sc=kmh<60?"#22c55e":kmh<100?"#eab308":"#ef4444";
+    $("spdArc").setAttribute("stroke",sc);
+    $("spdArc").style.filter=`drop-shadow(0 0 5px ${sc})`;
+    $("speedDigital").style.color=sc;
+  }else{
     $("spdArc").setAttribute("d","");
     $("speedDigital").style.color="var(--blue)";
   }
@@ -826,20 +770,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Maps terkadang menaruh link di parameter 'text', kadang di 'url'
   const sharedText = params.get('text') || params.get('url'); 
   
-  if (sharedText && (sharedText.includes('maps.app.goo.gl') || sharedText.includes('google.com/maps'))) {
-    // Ekstrak URL jika teks bercampur dengan kata-kata
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const extractedUrls = sharedText.match(urlRegex);
-    
-    if (extractedUrls && extractedUrls.length > 0) {
-      $("mapsUrl").value = extractedUrls[0];
-      // Hapus parameter dari URL bar agar tidak terproses berulang saat di-refresh
-      window.history.replaceState({}, document.title, "/fuelcalc/");
-      // Pindah ke tab kalkulator dan langsung hitung
-      goPage('kalkulator');
-      fetchDist(); 
-    }
-  }
+  // Share handler diabaikan untuk Maps link — user sudah pakai kolom Asal/Tujuan
 });
 isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
