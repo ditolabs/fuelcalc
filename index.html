@@ -503,26 +503,44 @@ async function refreshHarga(){
 function setSt(t,h){const e=$("mapsSt");e.className="maps-st "+t;e.innerHTML=h}
 function onMI(){$("mapsSt").className="maps-st"; mapsKm=null;mapsLabel="";}
 async function fetchDist(){
-  const url=$("mapsUrl").value.trim(); const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
+  let url=$("mapsUrl").value.trim(); const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
   if(!url && (!asal||!tj)) return;
   setSt("ld","⏳ Memproses rute..."); $("mapsBtn").disabled=true;
   try {
     let oStr="", dStr="";
     if(url) {
+      // Resolve link pendek goo.gl / maps.app.goo.gl
+      if(url.includes("goo.gl") || url.includes("maps.app")){
+        setSt("ld","⏳ Membuka link pendek...");
+        try{
+          const proxy=await fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url),{signal:AbortSignal.timeout(9000)});
+          const pdata=await proxy.json();
+          // Cari URL panjang Google Maps di dalam response
+          const finalUrl=pdata?.status?.url||"";
+          const bodyMatch=(pdata?.contents||"").match(/https:\/\/www\.google\.com\/maps\/dir\/[^"'\s\\]*/);
+          if(finalUrl.includes("/maps/dir/")) url=finalUrl;
+          else if(bodyMatch) url=bodyMatch[0];
+          else throw "redirect";
+        }catch(e){
+          throw "Link pendek tidak bisa dibuka otomatis. Silakan buka link di browser → copy URL panjang dari address bar, atau gunakan kolom Asal & Tujuan di bawah.";
+        }
+      }
+
       const m=url.match(/\/maps\/dir\/([^@]+?)(?:\/@|$)/);
-      if(!m){throw "Format link Maps salah."}
+      if(!m) throw "Format link tidak dikenali. Pastikan link berupa rute (Directions), bukan pin lokasi.";
       const pts=m[1].split("/").map(p=>decodeURIComponent(p).replace(/\+/g," ").trim()).filter(p=>p);
       oStr=pts[0]; dStr=pts[pts.length-1];
     } else { oStr=asal; dStr=tj; }
-    
+
     setSt("ld",`⏳ Mencari: <b>${oStr}</b> → <b>${dStr}</b>`);
     const [oc,dc]=await Promise.all([geo(oStr),geo(dStr)]);
-    if(!oc || !dc) throw "Lokasi tidak ditemukan. Coba ketik lebih detail.";
-    
+    if(!oc) throw `Lokasi asal tidak ditemukan: "${oStr.split(",")[0]}"`;
+    if(!dc) throw `Lokasi tujuan tidak ditemukan: "${dStr.split(",")[0]}"`;
+
     setSt("ld","⏳ Menghitung jarak...");
     const km=await osrm(oc,dc);
-    if(!km) throw "Gagal menghitung rute via OSRM.";
-    
+    if(!km) throw "Gagal menghitung rute.";
+
     mapsKm=km; mapsLabel=`${oStr.split(",")[0]} → ${dStr.split(",")[0]}`;
     setSt("ok",`✅ Jarak: <b>${km.toFixed(1)} km</b><br><span style="opacity:.8;font-size:11px">${mapsLabel}</span>`);
     hitung();
