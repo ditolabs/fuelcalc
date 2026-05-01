@@ -10,7 +10,7 @@
 GITHUB_USER="ditolabs"
 REPO="fuelcalc"
 BRANCH="main"
-FILES=("index.html" "manifest.json" "sw.js" "icon.svg")
+FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json")
 
 echo ""
 echo "╔══════════════════════════════════════╗"
@@ -69,6 +69,7 @@ fi
 echo ""
 echo "📤 Mengupload file..."
 FAIL=0
+TMPDIR_DEPLOY=$(mktemp -d)
 
 for FILE in "${FILES[@]}"; do
   if [ ! -f "$FILE" ]; then
@@ -76,28 +77,34 @@ for FILE in "${FILES[@]}"; do
     continue
   fi
 
-  # Encode file ke base64 (tanpa newline untuk menghindari JSON error)
-  CONTENT=$(base64 -w 0 "$FILE" 2>/dev/null || base64 "$FILE" | tr -d '\n')
+  # Encode ke file temp — hindari "Argument list too long" untuk file besar
+  TMP_B64="$TMPDIR_DEPLOY/$(basename $FILE).b64"
+  TMP_JSON="$TMPDIR_DEPLOY/$(basename $FILE).json"
+  base64 -w 0 "$FILE" > "$TMP_B64" 2>/dev/null || base64 "$FILE" | tr -d '\n' > "$TMP_B64"
 
-  # Dapatkan SHA dari file yang sudah ada (jika ada, untuk proses update)
+  # Dapatkan SHA dari file yang sudah ada (untuk update)
   EXISTING=$(curl -s \
     -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
     https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$FILE)
 
   SHA=$(echo "$EXISTING" | grep '"sha"' | head -1 | sed 's/.*"sha": *"\([^"]*\)".*/\1/')
 
-  # Susun JSON payload
+  # Susun JSON payload ke file temp (bukan argumen shell)
+  CONTENT=$(cat "$TMP_B64")
   if [ -n "$SHA" ]; then
-    PAYLOAD="{\"message\":\"Update $FILE via script\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\",\"branch\":\"$BRANCH\"}"
+    printf '{"message":"Update %s via script","content":"%s","sha":"%s","branch":"%s"}' \
+      "$FILE" "$CONTENT" "$SHA" "$BRANCH" > "$TMP_JSON"
   else
-    PAYLOAD="{\"message\":\"Add $FILE via script\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\"}"
+    printf '{"message":"Add %s via script","content":"%s","branch":"%s"}' \
+      "$FILE" "$CONTENT" "$BRANCH" > "$TMP_JSON"
   fi
 
-  # Upload / Update
+  # Upload dengan payload dari file — tidak ada batasan panjang argumen
   RESULT=$(curl -s -o /dev/null -w "%{http_code}" \
     -X PUT \
     -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
-    -d "$PAYLOAD" \
+    -H "Content-Type: application/json" \
+    --data-binary "@$TMP_JSON" \
     https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$FILE)
 
   if [ "$RESULT" = "200" ] || [ "$RESULT" = "201" ]; then
@@ -106,7 +113,11 @@ for FILE in "${FILES[@]}"; do
     echo "  ❌ $FILE gagal (HTTP $RESULT)."
     FAIL=1
   fi
+
+  rm -f "$TMP_B64" "$TMP_JSON"
 done
+
+rm -rf "$TMPDIR_DEPLOY"
 
 # ── Aktifkan GitHub Pages (jika belum aktif) ──
 echo ""

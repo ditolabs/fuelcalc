@@ -1,14 +1,15 @@
-const CACHE = 'bbm-v2';
+const CACHE = 'bbm-v4';
 const ASSETS = [
   '/fuelcalc/',
   '/fuelcalc/index.html',
   '/fuelcalc/manifest.json',
-  '/fuelcalc/icon.svg'
+  '/fuelcalc/icon.svg',
+  '/fuelcalc/tol.json'
 ];
 
 self.addEventListener('install', e => {
+  // Tidak skipWaiting otomatis — tunggu user klik "Perbarui"
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -22,4 +23,9 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
+});
+
+// Terima pesan dari app untuk skip waiting (tombol "Perbarui")
+self.addEventListener('message', e => {
+  if(e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });

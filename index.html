@@ -175,8 +175,23 @@ input:focus{border-color:var(--accent)}
 /* SPEEDOMETER & TRIP */
 .speedo-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 4px;margin-bottom:12px;}
 #speedoSvg{width:min(270px,80vw);height:auto}
-.speed-digital{font-family:'DM Mono',monospace;font-size:48px;font-weight:500;line-height:1;margin-top:-2px;}
+#speedoSvg line#spdNeedle{transition:none} /* animasi via rAF, bukan CSS */
+.speed-digital{font-family:'DM Mono',monospace;font-size:48px;font-weight:500;line-height:1;margin-top:-2px;transition:color .4s}
 .speed-unit{font-size:12px;color:var(--mut);margin-top:2px;letter-spacing:1px}
+
+/* Update banner */
+.update-banner{
+  display:none;position:fixed;top:0;left:0;right:0;z-index:300;
+  background:var(--accent);color:#000;
+  padding:10px 16px;font-size:13px;font-weight:500;
+  display:none;align-items:center;justify-content:space-between;gap:10px;
+}
+.update-banner button{
+  background:#0004;border:none;border-radius:6px;
+  padding:5px 12px;font-size:12px;font-weight:600;
+  font-family:'DM Sans',sans-serif;cursor:pointer;color:#000;flex-shrink:0;
+}
+.update-banner .ub-x{background:none;border:none;font-size:16px;cursor:pointer;color:#0006;padding:0;flex-shrink:0}
 
 .trip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .trip-card{background:var(--card-bg);border:1px solid var(--b1);border-radius:11px;padding:12px;}
@@ -226,6 +241,30 @@ input:focus{border-color:var(--accent)}
   background:none;border:none;color:var(--mut);
   font-size:16px;cursor:pointer;padding:0;flex-shrink:0;margin-left:auto;
 }
+
+/* ══ NOTA CETAK — THERMAL RECEIPT PERTAMINA ══ */
+.nota-wrap{position:absolute;left:-9999px;top:0;z-index:-1}
+.nota-kertas{
+  width:300px;background:#fff;color:#000;
+  font-family:'Courier New',Courier,monospace;
+  font-size:12px;padding:16px 14px 20px;
+  box-sizing:border-box;line-height:1.55;
+}
+.n-logo{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px}
+.n-logo-mark{width:28px;height:22px}
+.n-logo-txt{font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Arial Black',sans-serif}
+.n-spbu{text-align:center;font-size:11px;line-height:1.4;margin-bottom:10px}
+.n-hr{border:none;border-top:1px dashed #000;margin:7px 0}
+.n-row{display:flex;font-size:12px;margin-bottom:1px}
+.n-row .nk{flex:0 0 120px;color:#000}
+.n-row .nv{flex:1;color:#000}
+.n-row .nv::before{content:': '}
+.n-total-row{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin:4px 0 2px}
+.n-pay-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:1px}
+.n-center{text-align:center;font-size:11px;color:#333;margin-top:2px}
+.n-footer{text-align:center;font-size:10px;color:#555;margin-top:10px;line-height:1.5;font-style:italic}
+.n-stamp{text-align:center;font-size:11px;font-weight:600;margin-top:8px;letter-spacing:2px}
+
 </style>
 </head>
 <body>
@@ -235,7 +274,10 @@ input:focus{border-color:var(--accent)}
   <div class="page active" id="pg-kalkulator">
     <div class="top-bar">
       <div class="pg-title"><div class="pg-icon" id="hIcon">⛽</div><h1>Kalkulator BBM</h1></div>
-      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn"><span class="icon" id="themeIcon">🌙</span></button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="theme-toggle" onclick="clearAll()" style="color:var(--red);border-color:var(--red)20" title="Reset semua">🗑 Reset</button>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn"><span class="icon" id="themeIcon">🌙</span></button>
+      </div>
     </div>
     <p class="pg-sub">Hitung biaya & estimasi perjalanan</p>
 
@@ -252,7 +294,10 @@ input:focus{border-color:var(--accent)}
     </div>
 
     <div class="sec">
-      <span class="lbl">Jenis Kendaraan</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="lbl" style="margin:0">Jenis Kendaraan</span>
+        <button onclick="$('presetModal').style.display='flex'" style="background:none;border:1px solid var(--b2);border-radius:16px;padding:4px 10px;font-size:11px;color:var(--mut);cursor:pointer;font-family:'DM Sans',sans-serif">💾 Preset</button>
+      </div>
       <select id="kSelect" class="form-sel" onchange="onKenChange()"></select>
       
       <div class="hidden" id="kCustomRow" style="margin-top:8px">
@@ -284,9 +329,30 @@ input:focus{border-color:var(--accent)}
     </div>
 
     <div class="sec">
+      <span class="lbl">Mode Input</span>
+      <div class="pills" id="modePills">
+        <button class="pill active" id="modeBudget" onclick="setInputMode('budget')">💰 Budget</button>
+        <button class="pill" id="modeFulltank" onclick="setInputMode('fulltank')">⛽ Full Tank</button>
+      </div>
+    </div>
+
+    <div class="sec" id="budgetSec">
       <span class="lbl">Budget BBM</span>
       <div class="irow"><span class="ul">Rp</span><input type="number" id="budgetIn" placeholder="Nominal yang disiapkan..." oninput="hitung()"></div>
       <div class="pills" id="quickPills"></div>
+    </div>
+
+    <div class="sec hidden" id="fulltankSec">
+      <span class="lbl">Kapasitas Tangki</span>
+      <div class="irow">
+        <input type="number" id="tangkiIn" placeholder="Kapasitas tangki..." oninput="hitung()">
+        <span class="ul">liter</span>
+      </div>
+      <div class="pills pills-sm" id="tangkiPills"></div>
+      <div class="ibar" style="margin-top:8px" id="fulltankBar">
+        <span>Estimasi biaya full tank</span>
+        <span class="iv" id="fulltankBiaya">–</span>
+      </div>
     </div>
 
     <div class="empty" id="emptyState"><div class="ei">⛽</div><p>Masukkan budget atau jarak<br>untuk melihat estimasi</p></div>
@@ -305,7 +371,75 @@ input:focus{border-color:var(--accent)}
         <div class="card"><span class="clbl">Biaya / km</span><span class="cval" style="color:var(--purple)" id="cPerKm"></span></div>
       </div>
       <div id="sisaPanel"></div>
+
+      <!-- Biaya Tol -->
+      <div class="sec" style="margin-top:10px">
+        <div class="ibar" style="cursor:pointer" onclick="toggleTol()">
+          <span style="font-size:12px">🛣️ Tambah biaya tol <span id="tolChevron" style="font-size:10px;color:var(--mut)">▼</span></span>
+          <span class="iv" id="tolBiayaLabel" style="color:var(--mut)">opsional</span>
+        </div>
+        <div class="hidden" id="tolRow" style="margin-top:8px">
+          <div class="irow" style="margin-bottom:6px">
+            <span class="ul" style="white-space:nowrap">Golongan</span>
+            <select id="golSel" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:8px 10px;color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif;flex:1" onchange="autoFillTol()">
+              <option value="1">Gol I — Sedan / Jip / Pickup / Bus kecil</option>
+              <option value="2">Gol II — Truk 2 sumbu</option>
+              <option value="3">Gol III — Truk 3 sumbu</option>
+            </select>
+          </div>
+          <div class="irow"><span class="ul">Rp</span><input type="number" id="tolIn" placeholder="Total biaya tol..." oninput="hitung()"></div>
+          <div id="tolDetailMsg" style="display:none;font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5"></div>
+        </div>
+      </div>
+
+      <!-- Estimasi Waktu -->
+      <div class="c2 hidden" id="etaPanel">
+        <div class="card"><span class="clbl">⏱ Est. Waktu Tiba</span><span class="cval" style="color:var(--green)" id="etaVal">–</span></div>
+        <div class="card"><span class="clbl">💸 Total + Tol</span><span class="cval" style="color:var(--accent)" id="totalBiayaVal">–</span></div>
+      </div>
+
+      <!-- Cuaca tujuan -->
+      <div class="hidden" id="cuacaPanel" style="margin-bottom:8px">
+        <div class="ibar" id="cuacaCard" style="border-radius:11px;padding:11px 13px;border:1px solid var(--b1)">
+          <div>
+            <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">🌤 Cuaca Tujuan</div>
+            <div id="cuacaTxt" style="font-size:13px;color:var(--txt)">–</div>
+          </div>
+          <div style="font-size:28px" id="cuacaEmoji">–</div>
+        </div>
+      </div>
+
+      <!-- Perbandingan BBM -->
+      <div class="hidden" id="bbmCompPanel" style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📊 Perbandingan BBM</div>
+        <div id="bbmCompTable"></div>
+      </div>
+
+      <!-- Tombol Share -->
+      <button id="shareBtn" class="hidden" onclick="shareHasil()" style="width:100%;padding:11px;border-radius:11px;border:1px solid var(--b2);background:var(--s2);color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>📤</span> Bagikan Hasil
+      </button>
+      <button id="printBtn" class="hidden" onclick="downloadNota()" style="width:100%;padding:11px;border-radius:11px;border:1px solid var(--b2);background:var(--s2);color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>🖨️</span> Cetak Nota PNG
+      </button>
+
       <div class="summary" id="summaryEl"></div>
+    </div>
+
+    <!-- Preset Kendaraan -->
+    <div id="presetModal" style="display:none;position:fixed;inset:0;z-index:400;background:#0008;align-items:flex-end">
+      <div style="background:var(--s1);border-radius:16px 16px 0 0;padding:20px;width:100%;max-height:70vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-weight:600;font-size:16px">💾 Preset Kendaraan Saya</span>
+          <button onclick="$('presetModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--mut)">✕</button>
+        </div>
+        <div id="presetList" style="margin-bottom:14px"></div>
+        <div style="font-size:11px;color:var(--mut);margin-bottom:8px">Simpan konfigurasi saat ini:</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="presetNameIn" placeholder="Nama preset (misal: Motor Saya)" style="flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 12px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+          <button onclick="simpanPreset()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Simpan</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -327,11 +461,36 @@ input:focus{border-color:var(--accent)}
     <button class="track-btn start" id="trackBtn" onclick="toggleTrack()">▶ Mulai Perjalanan</button>
     <button class="track-btn save hidden" id="saveBtn" onclick="simpanRiwayat()">💾 Simpan Hasil Perjalanan</button>
 
+    <!-- Speed alert toggle -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:10px 13px;background:var(--s1);border:1px solid var(--b1);border-radius:11px">
+      <div>
+        <div style="font-size:12px;font-weight:500">📳 Notifikasi Batas Kecepatan</div>
+        <div style="font-size:11px;color:var(--mut);margin-top:2px">Getar saat melewati batas</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="speedLimitSel" style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:4px 8px;color:var(--txt);font-size:12px;font-family:'DM Sans',sans-serif">
+          <option value="0">Nonaktif</option>
+          <option value="40">40 km/h</option>
+          <option value="60" selected>60 km/h</option>
+          <option value="80">80 km/h</option>
+          <option value="100">100 km/h</option>
+        </select>
+      </div>
+    </div>
+
     <div class="trip-grid">
       <div class="trip-card"><div class="trip-lbl">Jarak</div><div class="trip-val" id="tJarak" style="color:var(--blue)">0.00</div><div class="trip-sub">km</div></div>
       <div class="trip-card"><div class="trip-lbl">Waktu</div><div class="trip-val" id="tWaktu">0:00</div><div class="trip-sub">durasi</div></div>
       <div class="trip-card"><div class="trip-lbl">Kec. Rata-rata</div><div class="trip-val" id="tAvg">0</div><div class="trip-sub">km/h</div></div>
       <div class="trip-card"><div class="trip-lbl">BBM Terpakai</div><div class="trip-val" id="tFuel" style="color:var(--accent)">0.00</div><div class="trip-sub">liter (estimasi)</div></div>
+      <div class="trip-card"><div class="trip-lbl">Odometer Sesi</div><div class="trip-val" id="tOdo" style="color:var(--purple)">0.00</div><div class="trip-sub">km total semua trip</div></div>
+      <div class="trip-card"><div class="trip-lbl">Kec. Maks</div><div class="trip-val" id="tMaks" style="color:var(--yellow)">0</div><div class="trip-sub">km/h</div></div>
+    </div>
+
+    <!-- GPS Trace canvas -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🗺 Jejak Rute GPS</div>
+      <canvas id="gpsTrace" width="600" height="200" style="width:100%;height:auto;border-radius:11px;background:var(--s2);border:1px solid var(--b1)"></canvas>
     </div>
   </div>
 
@@ -357,6 +516,11 @@ input:focus{border-color:var(--accent)}
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Riwayat
   </button>
 </nav>
+<div id="updateBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:300;background:var(--accent);color:#000;padding:10px 16px;font-size:13px;font-weight:500;align-items:center;justify-content:space-between;gap:10px;">
+  <span>🔄 Versi baru tersedia!</span>
+  <button onclick="doUpdate()" style="background:#0003;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:#000">Perbarui</button>
+  <button onclick="$('updateBanner').style.display='none'" style="background:none;border:none;font-size:16px;cursor:pointer;color:#0006;padding:0">✕</button>
+</div>
 <div id="installBanner">
   <span>📲 Install BBM Tracker ke homescreen?</span>
   <button onclick="doInstall()">Install</button>
@@ -375,6 +539,8 @@ const MAX_SPD=160; const SVG_NS="http://www.w3.org/2000/svg";
 let fi=0,cfuel=false,harga=10000, ki=0,cken=false,konsumsi=45, budget=0,mapsKm=null,mapsLabel="";
 let tracking=false,watchId=null,timerInt=null, wakeLock=null;
 let tripDist=0,tripSec=0,tripSpdSum=0,tripSpdN=0,lastLa=null,lastLo=null,lastT=null;
+/* smooth speedometer */
+let currentKmh=0, targetKmh=0, spdRafId=null;
 
 function $(i){return document.getElementById(i)}
 function rp(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(n)}
@@ -426,6 +592,40 @@ function buildBudgetPills(){
     b.onclick=()=>{$("budgetIn").value=v; hitung()};
     $("quickPills").appendChild(b);
   });
+}
+
+function clearAll(){
+  // Reset input
+  $("budgetIn").value="";
+  $("tangkiIn").value="";
+  $("asalIn").value="";
+  $("tujuanIn").value="";
+  // Reset state
+  budget=0; mapsKm=null; mapsLabel="";
+  // Reset mode ke budget
+  setInputMode("budget");
+  // Reset koreksi ke default
+  $("koreksiJalan").value="0";
+  $("koreksiBeban").value="0";
+  // Reset fuel & kendaraan ke pilihan pertama
+  fi=0; cfuel=false; harga=FUEL[0].h;
+  ki=0; cken=false; konsumsi=KEN[0].k;
+  $("fuelCustomRow").classList.add("hidden");
+  $("kCustomRow").classList.add("hidden");
+  // Reset maps status
+  $("mapsSt").className="maps-st";
+  // Rebuild UI
+  initDropdowns(); buildBudgetPills(); buildTangkiPills();
+  // Reset result
+  $("emptyState").classList.remove("hidden");
+  $("resultEl").classList.add("hidden");
+  $("sisaPanel").className="hidden";
+  // Scroll ke atas
+  $("pg-kalkulator").scrollTop=0;
+  // Flash subtle confirmation
+  const icon=$("hIcon");
+  icon.textContent="✓"; icon.style.background="#22c55e22";
+  setTimeout(()=>{icon.textContent="⛽"; icon.style.background=FUEL[0].w+"22"},1000);
 }
 
 function onFuelChange(){
@@ -511,11 +711,92 @@ async function fetchDist(){
     mapsKm=km; mapsLabel=`${asal} → ${tj}`;
     setSt("ok",`✅ Jarak: <b>${km.toFixed(1)} km</b><br><span style="opacity:.8;font-size:11px">${mapsLabel}</span>`);
     hitung();
+    autoFillTol();
   }catch(e){ setSt("err","❌ "+(typeof e==="string"?e:"Gagal. Periksa koneksi internet.")); }
   $("mapsBtn").disabled=false;
 }
 
-/* Geocoder dengan 3 lapis fallback — tanpa AbortSignal (kompatibel semua Android) */
+/* ════ DATABASE KOTA INDONESIA ════ */
+const KOTA_DB={
+  // Jawa Timur
+  "surabaya":{la:-7.2504,lo:112.7688},"sidoarjo":{la:-7.4478,lo:112.7183},
+  "mojokerto":{la:-7.4714,lo:112.4340},"malang":{la:-7.9797,lo:112.6304},
+  "batu":{la:-7.8698,lo:112.5266},"pasuruan":{la:-7.6454,lo:112.9072},
+  "probolinggo":{la:-7.7543,lo:113.2159},"lumajang":{la:-8.1322,lo:113.2228},
+  "jember":{la:-8.1724,lo:113.6997},"bondowoso":{la:-7.9125,lo:113.8218},
+  "situbondo":{la:-7.7073,lo:114.0082},"banyuwangi":{la:-8.2191,lo:114.3691},
+  "gresik":{la:-7.1560,lo:112.6514},"lamongan":{la:-7.1174,lo:112.4125},
+  "tuban":{la:-6.8998,lo:112.0508},"bojonegoro":{la:-7.1535,lo:111.8812},
+  "ngawi":{la:-7.4001,lo:111.4490},"magetan":{la:-7.6505,lo:111.3283},
+  "madiun":{la:-7.6299,lo:111.5233},"ponorogo":{la:-7.8730,lo:111.4618},
+  "pacitan":{la:-8.1967,lo:111.1043},"trenggalek":{la:-8.0502,lo:111.7084},
+  "tulungagung":{la:-8.0655,lo:111.9014},"blitar":{la:-8.0983,lo:112.1610},
+  "kediri":{la:-7.8166,lo:112.0112},"nganjuk":{la:-7.6045,lo:111.9045},
+  "jombang":{la:-7.5459,lo:112.2317},"sampang":{la:-7.1860,lo:113.2445},
+  "pamekasan":{la:-7.1574,lo:113.4693},"sumenep":{la:-6.9940,lo:113.8595},
+  "bangkalan":{la:-7.0481,lo:112.7287},"madura":{la:-7.0481,lo:112.7287},
+  "banyuwangi selatan":{la:-8.4678,lo:114.1534},
+  "taman nasional baluran":{la:-7.8665,lo:114.4379},
+  "baluran":{la:-7.8665,lo:114.4379},
+  "alas purwo":{la:-8.6778,lo:114.4110},
+  "kawah ijen":{la:-8.0580,lo:114.2422},
+  "bromo":{la:-7.9425,lo:112.9531},"gunung bromo":{la:-7.9425,lo:112.9531},
+  // Jawa Barat
+  "bandung":{la:-6.9175,lo:107.6191},"bekasi":{la:-6.2349,lo:106.9896},
+  "bogor":{la:-6.5971,lo:106.8060},"depok":{la:-6.4025,lo:106.7942},
+  "tangerang":{la:-6.1781,lo:106.6298},"cirebon":{la:-6.7063,lo:108.5570},
+  "tasikmalaya":{la:-7.3274,lo:108.2207},"sukabumi":{la:-6.9218,lo:106.9270},
+  "karawang":{la:-6.3211,lo:107.3382},"purwakarta":{la:-6.5567,lo:107.4383},
+  "subang":{la:-6.5742,lo:107.7563},"indramayu":{la:-6.3274,lo:108.3232},
+  "garut":{la:-7.2167,lo:107.9069},"ciamis":{la:-7.3307,lo:108.3468},
+  // Jawa Tengah
+  "semarang":{la:-7.0051,lo:110.4381},"solo":{la:-7.5755,lo:110.8243},
+  "surakarta":{la:-7.5755,lo:110.8243},"yogyakarta":{la:-7.7956,lo:110.3695},
+  "jogja":{la:-7.7956,lo:110.3695},"magelang":{la:-7.4712,lo:110.2177},
+  "salatiga":{la:-7.3305,lo:110.5084},"pekalongan":{la:-6.8886,lo:109.6753},
+  "tegal":{la:-6.8694,lo:109.1402},"brebes":{la:-6.8755,lo:109.0415},
+  "purwokerto":{la:-7.4310,lo:109.2479},"cilacap":{la:-7.7326,lo:109.0149},
+  "banyumas":{la:-7.5271,lo:109.2950},"kebumen":{la:-7.6785,lo:109.6517},
+  "wonosobo":{la:-7.3609,lo:109.9009},"purworejo":{la:-7.7133,lo:110.0163},
+  "klaten":{la:-7.7006,lo:110.6086},"boyolali":{la:-7.5328,lo:110.5993},
+  "kudus":{la:-6.8044,lo:110.8456},"jepara":{la:-6.5878,lo:110.6681},
+  "demak":{la:-6.8924,lo:110.6383},"grobogan":{la:-7.0061,lo:110.9186},
+  "blora":{la:-6.9681,lo:111.4147},"rembang":{la:-6.7080,lo:111.3411},
+  "pati":{la:-6.7452,lo:111.0384},"juana":{la:-6.7213,lo:111.1467},
+  // Jakarta & Banten
+  "jakarta":{la:-6.2088,lo:106.8456},"jakarta pusat":{la:-6.1864,lo:106.8342},
+  "jakarta selatan":{la:-6.2615,lo:106.8106},"jakarta barat":{la:-6.1682,lo:106.7641},
+  "jakarta timur":{la:-6.2250,lo:106.9004},"jakarta utara":{la:-6.1214,lo:106.9040},
+  "serang":{la:-6.1167,lo:106.1508},"cilegon":{la:-6.0023,lo:106.0172},
+  // Sumatra
+  "medan":{la:3.5952,lo:98.6722},"palembang":{la:-2.9761,lo:104.7754},
+  "pekanbaru":{la:0.5333,lo:101.4500},"padang":{la:-0.9492,lo:100.3543},
+  "jambi":{la:-1.6101,lo:103.6131},"bengkulu":{la:-3.8004,lo:102.2655},
+  "lampung":{la:-5.4294,lo:105.2672},"bandar lampung":{la:-5.4294,lo:105.2672},
+  "banda aceh":{la:5.5483,lo:95.3238},
+  // Kalimantan
+  "pontianak":{la:-0.0263,lo:109.3425},"samarinda":{la:-0.5022,lo:117.1536},
+  "balikpapan":{la:-1.2379,lo:116.8529},"banjarmasin":{la:-3.3194,lo:114.5908},
+  "palangkaraya":{la:-2.2161,lo:113.9135},
+  // Sulawesi
+  "makassar":{la:-5.1477,lo:119.4327},"manado":{la:1.4748,lo:124.8421},
+  "palu":{la:-0.9003,lo:119.8779},"kendari":{la:-3.9985,lo:122.5129},
+  // Bali & NTT
+  "denpasar":{la:-8.6500,lo:115.2167},"bali":{la:-8.3405,lo:115.0920},
+  "mataram":{la:-8.5833,lo:116.1167},"lombok":{la:-8.6500,lo:116.3242},
+  "kupang":{la:-10.1772,lo:123.6070},
+};
+
+function geoFromDB(q){
+  const k=q.toLowerCase().trim();
+  if(KOTA_DB[k]) return KOTA_DB[k];
+  // Partial match — cari yang mengandung kata kunci
+  for(const[key,val] of Object.entries(KOTA_DB)){
+    if(k.includes(key)||key.includes(k)) return val;
+  }
+  return null;
+}
+
 async function fetchJson(url){
   const r=await fetch(url); if(!r.ok) throw new Error("http "+r.status);
   return r.json();
@@ -523,21 +804,14 @@ async function fetchJson(url){
 
 async function geo(place){
   const q=place.trim();
-  // 1. Photon (Komoot) — CORS terbuka, tidak butuh header khusus
+  // 1. Database lokal — paling cepat & tidak perlu internet
+  const local=geoFromDB(q); if(local) return local;
+  // 2. Photon (Komoot) — CORS terbuka
   try{
-    const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=id`);
-    if(d.features&&d.features.length){
-      const[lo,la]=d.features[0].geometry.coordinates; return{la,lo};
-    }
+    const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q+" Indonesia")}&limit=1`);
+    if(d.features&&d.features.length){const[lo,la]=d.features[0].geometry.coordinates;return{la,lo};}
   }catch(e){}
-  // 2. Photon dengan tambahan "Indonesia" supaya lebih spesifik
-  try{
-    const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q+" Indonesia")}&limit=1&lang=id`);
-    if(d.features&&d.features.length){
-      const[lo,la]=d.features[0].geometry.coordinates; return{la,lo};
-    }
-  }catch(e){}
-  // 3. Nominatim via CORS proxy (fallback terakhir)
+  // 3. Nominatim via CORS proxy
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+", Indonesia")}&format=json&limit=1&countrycodes=id`;
     const d=await fetchJson("https://api.allorigins.win/raw?url="+encodeURIComponent(url));
@@ -557,43 +831,108 @@ async function osrm({la:la1,lo:lo1},{la:la2,lo:lo2}){
 }
 
 /* ════ LOGIKA ESTIMASI (FAKTOR KOREKSI) ════ */
-function hitung(){
-  budget=parseFloat($("budgetIn").value)||0; buildBudgetPills();
-  if(!harga||!konsumsi){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
-  
-  const fJalan = parseFloat($("koreksiJalan").value) || 0;
-  const fBeban = parseFloat($("koreksiBeban").value) || 0;
-  const faktor = 1 + fJalan + fBeban;
-  const realKonsumsi = konsumsi / faktor;
+let inputMode="budget";
 
-  if(!budget && !mapsKm){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
+function setInputMode(m){
+  inputMode=m;
+  $("modeBudget").classList.toggle("active",m==="budget");
+  $("modeFulltank").classList.toggle("active",m==="fulltank");
+  $("budgetSec").classList.toggle("hidden",m!=="budget");
+  $("fulltankSec").classList.toggle("hidden",m!=="fulltank");
+  hitung();
+}
+
+function buildTangkiPills(){
+  const TANGKI=[3,4,5,6,7,10,12,15,20];
+  const c=$("tangkiPills"); c.innerHTML="";
+  const cur=parseFloat($("tangkiIn").value)||0;
+  TANGKI.forEach(v=>{
+    const b=mk("button","pill"+(cur===v?" active":""),v+" L");
+    b.onclick=()=>{$("tangkiIn").value=v;buildTangkiPills();hitung()};
+    c.appendChild(b);
+  });
+}
+
+function showResult(liter, bisa, biaya, perKm, fc){
   $("emptyState").classList.add("hidden"); $("resultEl").classList.remove("hidden");
-
-  let liter=0, bisa=0, perKm=0;
-
-  if(budget > 0) {
-    liter = budget/harga; bisa = liter * realKonsumsi; perKm = budget/bisa;
-  } else if (mapsKm > 0) {
-    bisa = mapsKm; liter = bisa / realKonsumsi; budget = liter * harga; perKm = budget/bisa;
-  }
-
-  const fc=FUEL[fi]?.w||"#f97316";
-  $("cBiaya").style.color=fc; $("cBiaya").textContent=rp(Math.round(budget));
+  $("cBiaya").style.color=fc; $("cBiaya").textContent=rp(Math.round(biaya));
   $("cLiter").textContent=liter.toFixed(2)+" L";
   $("cBisa").textContent=bisa.toFixed(1)+" km";
   $("cPerKm").textContent=rp(Math.round(perKm));
-
   drawMG("mgL",liter/15,fc,"LITER"); drawMG("mgJ",bisa/300,"#60a5fa","JARAK"); drawMG("mgP",perKm/500,"#a78bfa","per KM");
   $("mgLv").innerHTML=`<span style="color:${fc}">${liter.toFixed(1)}</span><span style="color:var(--mut);font-size:9px"> L</span>`;
   $("mgJv").innerHTML=`<span style="color:var(--blue)">${bisa.toFixed(0)}</span><span style="color:var(--mut);font-size:9px"> km</span>`;
   $("mgPv").innerHTML=`<span style="color:var(--purple)">${Math.round(perKm)}</span><span style="color:var(--mut);font-size:9px"> Rp</span>`;
 
+  // Biaya tol + total
+  const tol=parseFloat($("tolIn")?.value)||0;
+  const totalBiaya=biaya+tol;
+  if(mapsKm||tol>0){
+    $("etaPanel").classList.remove("hidden");
+    $("totalBiayaVal").textContent=rp(Math.round(totalBiaya));
+    // ETA: asumsi rata-rata 60 km/h jika ada jarak rute
+    if(mapsKm){
+      const jamEst=mapsKm/60;
+      const jam=Math.floor(jamEst);
+      const mnt=Math.round((jamEst-jam)*60);
+      $("etaVal").textContent=jam>0?`${jam}j ${mnt}m`:mnt+"m";
+    } else {$("etaVal").textContent="–";}
+  } else $("etaPanel").classList.add("hidden");
+
+  // Sisa/kurang panel
   const sp=$("sisaPanel");
-  if(mapsKm && budget>0){
+  if(mapsKm&&biaya>0){
     const sel=bisa-mapsKm;
     sp.className="sisa-card "+(sel>=0?"ok":"kurang");
-    sp.innerHTML=sel>=0?`✅ Budget cukup untuk ${mapsKm.toFixed(1)} km.<br>Sisa ≈ ${rp(Math.round(sel*perKm))}`:`⚠️ Budget kurang untuk ${mapsKm.toFixed(1)} km.<br>Perlu tambah ≈ ${rp(Math.round(-sel*perKm))}`;
-  } else sp.className="hidden";
+    sp.innerHTML=sel>=0
+      ?`✅ Estimasi cukup untuk ${mapsKm.toFixed(1)} km. Sisa ≈ ${rp(Math.round(sel*perKm))}`
+      :`⚠️ Kurang untuk ${mapsKm.toFixed(1)} km. Perlu tambah ≈ ${rp(Math.round(-sel*perKm))}`;
+  } else sp.className="";
+
+  // Perbandingan BBM (hanya jika ada jarak rute)
+  if(mapsKm) renderBBMComp(mapsKm, perKm);
+  else $("bbmCompPanel").classList.add("hidden");
+
+  // Share button
+  $("shareBtn").classList.remove("hidden");
+  $("printBtn").classList.remove("hidden");
+}
+
+function hitung(){
+  budget=parseFloat($("budgetIn").value)||0; buildBudgetPills();
+  if(!harga||!konsumsi){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
+  const fJalan=parseFloat($("koreksiJalan").value)||0;
+  const fBeban=parseFloat($("koreksiBeban").value)||0;
+  const realKonsumsi=konsumsi/(1+fJalan+fBeban);
+  const fc=FUEL[fi]?.w||"#f97316";
+
+  if(inputMode==="fulltank"){
+    const tangki=parseFloat($("tangkiIn").value)||0;
+    buildTangkiPills();
+    if(!tangki){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");$("fulltankBiaya").textContent="–";return}
+    const biayaFull=tangki*harga;
+    $("fulltankBiaya").textContent=rp(Math.round(biayaFull));
+    showResult(tangki, tangki*realKonsumsi, biayaFull, biayaFull/(tangki*realKonsumsi), fc);
+    // Fetch cuaca tujuan jika ada
+    if(mapsKm){
+      const tjCoord=geoFromDB($("tujuanIn").value.trim());
+      if(tjCoord) fetchCuaca(tjCoord.la,tjCoord.lo);
+    }
+    return;
+  }
+
+  if(!budget&&!mapsKm){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
+  let liter=0,bisa=0,biaya=0,perKm=0;
+  if(budget>0){liter=budget/harga;bisa=liter*realKonsumsi;biaya=budget;perKm=biaya/bisa;}
+  else if(mapsKm>0){bisa=mapsKm;liter=bisa/realKonsumsi;biaya=liter*harga;perKm=biaya/bisa;}
+  showResult(liter, bisa, biaya, perKm, fc);
+
+  // Fetch cuaca tujuan
+  if(mapsKm){
+    const tjCoord=geoFromDB($("tujuanIn").value.trim());
+    if(tjCoord) fetchCuaca(tjCoord.la,tjCoord.lo);
+    else $("cuacaPanel").classList.add("hidden");
+  } else $("cuacaPanel").classList.add("hidden");
 }
 
 function drawMG(id,pct,color,lbl){
@@ -639,8 +978,13 @@ function relWL(){if(wakeLock!==null){wakeLock.release();wakeLock=null}}
 function toggleTrack(){tracking?stopTrack():startTrack()}
 function startTrack(){
   if(!("geolocation" in navigator)){alert("Browser tidak mendukung GPS.");return}
-  tripDist=0;tripSec=0;tripSpdSum=0;tripSpdN=0;lastLa=null;lastLo=null;lastT=null;
-  $("saveBtn").classList.add("hidden"); $("trackBtn").textContent="⏹ Stop Perjalanan"; $("trackBtn").className="track-btn stop"; $("gpsDot").classList.add("active");
+  tripDist=0;tripSec=0;tripSpdSum=0;tripSpdN=0;tripMaxKmh=0;lastAlertKmh=0;
+  lastLa=null;lastLo=null;lastT=null;
+  gpsPoints=[]; drawTrace();
+  currentKmh=0; targetKmh=0;
+  $("saveBtn").classList.add("hidden");
+  $("trackBtn").textContent="⏹ Stop Perjalanan"; $("trackBtn").className="track-btn stop";
+  $("gpsDot").classList.add("active"); $("gpsStatusTxt").textContent="Menunggu GPS...";
   tracking=true; reqWL();
   timerInt=setInterval(()=>{tripSec++;$("tWaktu").textContent=fmtT(tripSec)},1000);
   watchId=navigator.geolocation.watchPosition(onPos,e=>$("gpsStatusTxt").textContent="GPS Error: "+e.message,{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
@@ -648,9 +992,16 @@ function startTrack(){
 function stopTrack(){
   tracking=false; relWL(); clearInterval(timerInt);
   if(watchId!=null) navigator.geolocation.clearWatch(watchId);
-  $("trackBtn").textContent="▶ Mulai Perjalanan"; $("trackBtn").className="track-btn start"; $("gpsDot").classList.remove("active");
+  $("trackBtn").textContent="▶ Mulai Perjalanan"; $("trackBtn").className="track-btn start";
+  $("gpsDot").classList.remove("active");
   $("gpsStatusTxt").textContent="Selesai — "+fmtT(tripSec);
   $("saveBtn").classList.remove("hidden");
+  // Simpan ke odometer total
+  addOdometer(tripDist);
+  $("tOdo").textContent=getOdometer().toFixed(2);
+  // Stop smooth needle
+  targetKmh=0;
+  if(!spdRafId) spdRafId=requestAnimationFrame(animateSpeedo);
 }
 
 function onPos(pos){
@@ -660,39 +1011,341 @@ function onPos(pos){
   if(spd!=null&&spd>=0) kmh=spd*3.6;
   else if(lastLa!=null&&lastT!=null){const dt=(Date.now()-lastT)/3600000;kmh=dt>0?haversine(lastLa,lastLo,la,lo)/dt:0}
   kmh=Math.max(0,Math.min(kmh,MAX_SPD));
+  if(kmh>tripMaxKmh) tripMaxKmh=kmh;
 
   if(lastLa!=null){
     const seg=haversine(lastLa,lastLo,la,lo);
-    if(kmh > 2.0 && seg < 0.5) tripDist+=seg;
+    if(kmh>2.0&&seg<0.5) tripDist+=seg;
   }
   if(kmh>0){tripSpdSum+=kmh;tripSpdN++}
+
+  // GPS trace — simpan titik & redraw tiap 3 titik baru
+  gpsPoints.push({la,lo});
+  if(gpsPoints.length%3===0) drawTrace();
+
   lastLa=la;lastLo=lo;lastT=Date.now();
-  
+
+  // Speed alert (vibrate)
+  checkSpeedAlert(kmh);
+
+  // Smooth speedo
+  targetKmh=kmh;
+  if(!spdRafId) spdRafId=requestAnimationFrame(animateSpeedo);
+
+  const fJalan=parseFloat($("koreksiJalan").value)||0;
+  const fBeban=parseFloat($("koreksiBeban").value)||0;
+  const rK=konsumsi/(1+fJalan+fBeban);
+  const litrP=rK>0?tripDist/rK:0;
+  const sisaBudget=budget>0?budget-(litrP*harga):null;
+
+  $("tJarak").textContent=tripDist.toFixed(2);
+  $("tMaks").textContent=Math.round(tripMaxKmh);
+  $("tAvg").textContent=tripSpdN>0?Math.round(tripSpdSum/tripSpdN):0;
+  $("tFuel").textContent=litrP.toFixed(2);
+  $("tOdo").textContent=(getOdometer()+tripDist).toFixed(2);
+  if($("tSisa")&&sisaBudget!==null){
+    $("tSisa").textContent=sisaBudget>=0?rp(Math.round(sisaBudget)):"–"+rp(Math.round(-sisaBudget));
+    $("tSisa").style.color=sisaBudget>=0?"var(--green)":"var(--red)";
+  }
+}
+
+function animateSpeedo(){
+  // Lerp: naik cepat (0.15), turun lambat (0.08) — mirip speedometer fisik
+  const rate=targetKmh>currentKmh?0.15:0.08;
+  currentKmh+=(targetKmh-currentKmh)*rate;
+  if(Math.abs(currentKmh-targetKmh)<0.3) currentKmh=targetKmh;
+  renderSpeedo(currentKmh);
+  if(Math.abs(currentKmh-targetKmh)>0.2) spdRafId=requestAnimationFrame(animateSpeedo);
+  else spdRafId=null;
+}
+
+function renderSpeedo(kmh){
   const endDeg=135+(kmh/MAX_SPD)*270;
   const ep=p2c(95,endDeg);
-  $("spdNeedle").setAttribute("x2",ep.x); $("spdNeedle").setAttribute("y2",ep.y);
-  if(kmh>1){
+  const needle=$("spdNeedle"); if(!needle) return;
+  needle.setAttribute("x2",ep.x); needle.setAttribute("y2",ep.y);
+  if(kmh>0.5){
     $("spdArc").setAttribute("d",arcP(112,135,endDeg));
     const sc=kmh<60?"#22c55e":kmh<100?"#eab308":"#ef4444";
     $("spdArc").setAttribute("stroke",sc);
-    $("spdArc").style.filter=`drop-shadow(0 0 5px ${sc})`;
+    $("spdArc").style.filter=`drop-shadow(0 0 6px ${sc})`;
     $("speedDigital").style.color=sc;
   }else{
     $("spdArc").setAttribute("d","");
     $("speedDigital").style.color="var(--blue)";
   }
   $("speedDigital").textContent=Math.round(kmh);
-
-  const fJalan = parseFloat($("koreksiJalan").value) || 0;
-  const fBeban = parseFloat($("koreksiBeban").value) || 0;
-  const rK = konsumsi / (1 + fJalan + fBeban);
-  
-  $("tJarak").textContent=tripDist.toFixed(2);
-  $("tAvg").textContent=tripSpdN>0?Math.round(tripSpdSum/tripSpdN):0;
-  $("tFuel").textContent=(tripDist/rK).toFixed(2);
 }
 
-/* ════ RIWAYAT LOKAL ════ */
+
+
+
+
+
+
+/* ════ TOL — LAZY LOAD DARI tol.json ════ */
+let CACHED_TOL=null;
+async function loadTol(){
+  if(CACHED_TOL) return CACHED_TOL;
+  try{
+    const r=await fetch('tol.json');
+    if(!r.ok) throw new Error("not found");
+    CACHED_TOL=await r.json();
+    return CACHED_TOL;
+  }catch(e){console.warn("tol.json gagal:",e);return null;}
+}
+
+async function cariTol(asalKota,tujuanKota){
+  const data=await loadTol(); if(!data) return null;
+  const {TOL_DB,KOTA_RUAS,RUAS_URUT}=data;
+  const a=asalKota.toLowerCase().trim(), t=tujuanKota.toLowerCase().trim();
+  let matchedRuas=new Set();
+  for(const kr of KOTA_RUAS){
+    const hitA=kr.kota.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
+    const hitT=kr.kota.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
+    if(hitA||hitT) kr.ruas.forEach(r=>matchedRuas.add(r));
+  }
+  if(!matchedRuas.size) return null;
+  const perRuas={};
+  for(const r of TOL_DB){
+    if(matchedRuas.has(r.r)&&(!perRuas[r.r]||r.g1>perRuas[r.r].g1)) perRuas[r.r]=r;
+  }
+  const ruasDilalui=RUAS_URUT.filter(r=>matchedRuas.has(r)&&perRuas[r]);
+  if(!ruasDilalui.length) return null;
+  let totalG1=0,totalG2=0,totalG3=0; const detail=[];
+  for(const r of ruasDilalui){
+    totalG1+=perRuas[r].g1;totalG2+=perRuas[r].g2;totalG3+=perRuas[r].g3;
+    detail.push({ruas:r,g1:perRuas[r].g1,g2:perRuas[r].g2,g3:perRuas[r].g3});
+  }
+  return {totalG1,totalG2,totalG3,detail};
+}
+
+async function autoFillTol(){
+  const asal=$("asalIn").value.trim(), tujuan=$("tujuanIn").value.trim();
+  if(!asal||!tujuan) return;
+  const hasil=await cariTol(asal,tujuan); if(!hasil) return;
+  const gol=parseInt($("golSel")?.value||"1");
+  const tarif=gol===1?hasil.totalG1:gol===2?hasil.totalG2:hasil.totalG3;
+  const tolRow=$("tolRow");
+  if(tolRow&&tolRow.classList.contains("hidden")) toggleTol();
+  if($("tolIn")) $("tolIn").value=tarif;
+  const detail=hasil.detail.map(d=>{
+    const t=gol===1?d.g1:gol===2?d.g2:d.g3;
+    return d.ruas+': '+rp(t);
+  }).join(' + ');
+  const msg=$("tolDetailMsg");
+  if(msg){msg.textContent="🛣 Estimasi tol: "+detail;msg.style.display="block";}
+  hitung();
+}
+
+/* ════ TOL TOGGLE ════ */
+function toggleTol(){
+  const row=$("tolRow"); const chev=$("tolChevron");
+  const hidden=row.classList.toggle("hidden");
+  chev.textContent=hidden?"▼":"▲";
+  if(hidden){$("tolIn").value=""; hitung();}
+}
+
+
+/* ════ CETAK NOTA PNG ════ */
+function downloadNota(){
+  const btn=$("printBtn");
+  const orig=btn.innerHTML; btn.innerHTML="⏳ Cetak..."; btn.disabled=true;
+  const fn=FUEL[fi]?.nama||"BBM", kn=KEN[ki]?.nama||"Kendaraan";
+  const tol=parseFloat($("tolIn")?.value)||0;
+  const biayaRaw=parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,""))||0;
+  const noTrans="BBM"+Date.now().toString().slice(-8);
+  const tgl=new Date().toLocaleString('id-ID',{
+    weekday:'long',day:'2-digit',month:'long',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit'
+  });
+  $("nNoTrans").textContent=noTrans;
+  $("nTanggal").textContent=tgl;
+  $("nBBM").textContent=fn.toUpperCase();
+  $("nHarga").textContent=rp(harga);
+  $("nLiter").textContent="(L) "+($("cLiter").textContent||"-").replace(" L","");
+  $("nKen").textContent=kn;
+  if(mapsLabel){
+    $("nRute").textContent=mapsLabel;
+    $("rowRuteNota").classList.remove("hidden");
+  } else { $("rowRuteNota").classList.add("hidden"); }
+  $("nJarak").textContent=$("cBisa").textContent;
+  $("nPerKm").textContent=$("cPerKm").textContent;
+  $("nUang").textContent=rp(biayaRaw+tol);
+  $("nKembali").textContent="Rp 0";
+  if(tol>0){$("rowTolNota").classList.remove("hidden");$("nTol").textContent=rp(tol);}
+  else $("rowTolNota").classList.add("hidden");
+  $("nTotal").textContent=rp(biayaRaw+tol);
+  html2canvas($("notaCetak"),{scale:2.5,backgroundColor:"#ffffff",useCORS:true}).then(canvas=>{
+    const a=document.createElement('a');
+    a.download="Nota_Pertamina_"+noTrans+".png";
+    a.href=canvas.toDataURL("image/png"); a.click();
+    btn.innerHTML=orig; btn.disabled=false;
+  }).catch(e=>{alert("Gagal cetak: "+e);btn.innerHTML=orig;btn.disabled=false;});
+}
+
+/* ════ SHARE HASIL ════ */
+function shareHasil(){
+  const biaya=$("cBiaya").textContent;
+  const liter=$("cLiter").textContent;
+  const jarak=$("cBisa").textContent;
+  const perKm=$("cPerKm").textContent;
+  const tol=parseFloat($("tolIn")?.value)||0;
+  const fn=FUEL[fi]?.nama||"BBM";
+  const kn=KEN[ki]?.nama||"Kendaraan";
+  let txt=`⛽ *Estimasi BBM - BBM Tracker*\n\n`;
+  if(mapsLabel) txt+=`📍 Rute: ${mapsLabel}\n`;
+  txt+=`🚗 Kendaraan: ${kn}\n`;
+  txt+=`⛽ BBM: ${fn}\n`;
+  txt+=`💰 Budget: ${biaya}\n`;
+  txt+=`🪣 BBM didapat: ${liter}\n`;
+  txt+=`📏 Estimasi jarak: ${jarak}\n`;
+  txt+=`📊 Biaya/km: ${perKm}\n`;
+  if(tol>0) txt+=`🛣️ Biaya tol: ${rp(tol)}\n`;
+  txt+=`\n_Dihitung via BBM Tracker_`;
+  if(navigator.share){
+    navigator.share({title:"Estimasi BBM",text:txt}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(txt).then(()=>alert("Teks disalin ke clipboard!")).catch(()=>alert(txt));
+  }
+}
+
+/* ════ PRESET KENDARAAN ════ */
+function loadPresets(){
+  return JSON.parse(localStorage.getItem("bbm-presets")||"[]");
+}
+function simpanPreset(){
+  const nama=$("presetNameIn").value.trim();
+  if(!nama) return;
+  const presets=loadPresets();
+  presets.push({id:Date.now(),nama,ki,cken,konsumsi,fi,cfuel,harga});
+  localStorage.setItem("bbm-presets",JSON.stringify(presets));
+  $("presetNameIn").value="";
+  renderPresets();
+}
+function renderPresets(){
+  const list=$("presetList"); list.innerHTML="";
+  const presets=loadPresets();
+  if(!presets.length){list.innerHTML='<p style="font-size:12px;color:var(--mut)">Belum ada preset tersimpan.</p>';return;}
+  presets.forEach(p=>{
+    const d=document.createElement("div");
+    d.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--s2);border-radius:9px;margin-bottom:7px";
+    d.innerHTML=`<div><div style="font-size:13px;font-weight:500">${p.nama}</div><div style="font-size:11px;color:var(--mut)">${p.konsumsi} km/L • ${FUEL[p.fi]?.nama||'BBM'}</div></div>
+      <div style="display:flex;gap:6px">
+        <button onclick="pakaiPreset(${p.id})" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">Pakai</button>
+        <button onclick="hapusPreset(${p.id})" style="background:none;border:1px solid var(--b2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--mut);cursor:pointer">🗑</button>
+      </div>`;
+    list.appendChild(d);
+  });
+}
+function pakaiPreset(id){
+  const p=loadPresets().find(x=>x.id===id); if(!p) return;
+  ki=p.ki; cken=p.cken; konsumsi=p.konsumsi;
+  fi=p.fi; cfuel=p.cfuel; harga=p.harga;
+  initDropdowns(); hitung();
+  $("presetModal").style.display="none";
+}
+function hapusPreset(id){
+  const presets=loadPresets().filter(x=>x.id!==id);
+  localStorage.setItem("bbm-presets",JSON.stringify(presets));
+  renderPresets();
+}
+
+/* ════ CUACA TUJUAN ════ */
+const CUACA_KODE={0:"☀️ Cerah",1:"🌤 Cerah Berawan",2:"⛅ Sebagian Berawan",3:"☁️ Mendung",
+  45:"🌫 Berkabut",48:"🌫 Kabut Beku",51:"🌦 Gerimis",53:"🌦 Gerimis Sedang",55:"🌧 Gerimis Lebat",
+  61:"🌧 Hujan Ringan",63:"🌧 Hujan Sedang",65:"🌧 Hujan Lebat",
+  80:"🌦 Hujan Lokal",81:"🌧 Hujan Deras Lokal",82:"⛈ Hujan Sangat Deras",
+  95:"⛈ Badai",96:"⛈ Badai + Hujan Es",99:"⛈ Badai Besar"};
+
+async function fetchCuaca(la,lo){
+  try{
+    const d=await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m,weathercode,windspeed_10m&timezone=Asia%2FJakarta`);
+    const c=d.current;
+    const desc=CUACA_KODE[c.weathercode]||"🌡 Tidak diketahui";
+    const emoji=desc.split(" ")[0];
+    const label=desc.split(" ").slice(1).join(" ");
+    $("cuacaEmoji").textContent=emoji;
+    $("cuacaTxt").textContent=`${label} • ${Math.round(c.temperature_2m)}°C • Angin ${Math.round(c.windspeed_10m)} km/h`;
+    $("cuacaPanel").classList.remove("hidden");
+  }catch(e){}
+}
+
+/* ════ PERBANDINGAN BBM ════ */
+function renderBBMComp(jarak,perKmBase){
+  const tbl=$("bbmCompTable"); tbl.innerHTML="";
+  const fJalan=parseFloat($("koreksiJalan").value)||0;
+  const fBeban=parseFloat($("koreksiBeban").value)||0;
+  const fakt=1+fJalan+fBeban;
+  FUEL.forEach(f=>{
+    const rK=konsumsi/fakt;
+    const ltr=jarak/rK;
+    const biaya=ltr*f.h;
+    const row=document.createElement("div");
+    row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--s2);border-radius:8px;margin-bottom:6px;border:1px solid var(--b1)";
+    const isActive=f.h===harga;
+    row.innerHTML=`<div style="display:flex;align-items:center;gap:8px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${f.w};flex-shrink:0"></div>
+      <span style="font-size:12px;font-weight:${isActive?600:400};color:${isActive?f.w:'var(--txt)'}">${f.nama}</span>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:'DM Mono',monospace;font-size:13px;color:${isActive?f.w:'var(--txt)'}">${rp(Math.round(biaya))}</div>
+      <div style="font-size:10px;color:var(--mut)">${ltr.toFixed(2)} L</div>
+    </div>`;
+    tbl.appendChild(row);
+  });
+  $("bbmCompPanel").classList.remove("hidden");
+}
+
+/* ════ ODOMETER & SPEED ALERT ════ */
+let tripMaxKmh=0, lastAlertKmh=0;
+function getOdometer(){return parseFloat(localStorage.getItem("bbm-odo")||"0")}
+function addOdometer(km){localStorage.setItem("bbm-odo",(getOdometer()+km).toFixed(2))}
+$("tOdo") && ($("tOdo").textContent=getOdometer().toFixed(2));
+
+function checkSpeedAlert(kmh){
+  const limit=parseFloat($("speedLimitSel").value)||0;
+  if(!limit) return;
+  if(kmh>limit && lastAlertKmh<=limit){
+    if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  }
+  lastAlertKmh=kmh;
+}
+
+/* ════ GPS TRACE CANVAS ════ */
+let gpsPoints=[];
+function drawTrace(){
+  const canvas=$("gpsTrace"); if(!canvas) return;
+  const ctx=canvas.getContext("2d");
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(gpsPoints.length<2) return;
+
+  const lats=gpsPoints.map(p=>p.la), lons=gpsPoints.map(p=>p.lo);
+  const minLa=Math.min(...lats), maxLa=Math.max(...lats);
+  const minLo=Math.min(...lons), maxLo=Math.max(...lons);
+  const pad=30;
+  const scX=lo=>(lo-minLo)/(maxLo-minLo||1)*(W-pad*2)+pad;
+  const scY=la=>(1-(la-minLa)/(maxLa-minLa||1))*(H-pad*2)+pad;
+
+  // Gradient line
+  ctx.lineWidth=2.5; ctx.lineCap="round"; ctx.lineJoin="round";
+  for(let i=1;i<gpsPoints.length;i++){
+    const t=i/gpsPoints.length;
+    ctx.strokeStyle=`hsl(${200+t*60},80%,60%)`;
+    ctx.beginPath();
+    ctx.moveTo(scX(gpsPoints[i-1].lo),scY(gpsPoints[i-1].la));
+    ctx.lineTo(scX(gpsPoints[i].lo),scY(gpsPoints[i].la));
+    ctx.stroke();
+  }
+  // Start dot
+  ctx.fillStyle="#22c55e";
+  ctx.beginPath(); ctx.arc(scX(gpsPoints[0].lo),scY(gpsPoints[0].la),5,0,Math.PI*2); ctx.fill();
+  // End dot
+  const last=gpsPoints[gpsPoints.length-1];
+  ctx.fillStyle="#ef4444";
+  ctx.beginPath(); ctx.arc(scX(last.lo),scY(last.la),5,0,Math.PI*2); ctx.fill();
+}
 function simpanRiwayat(){
   if(tripDist < 0.1) { alert("Jarak terlalu pendek untuk disimpan."); return; }
   const rK = konsumsi / (1 + parseFloat($("koreksiJalan").value) + parseFloat($("koreksiBeban").value));
@@ -763,15 +1416,58 @@ function doInstall() {
     if(b) b.style.display = "none";
   });
 }
-/* ════ INIT ════ */
-/* ════ CEK SHARE TARGET DARI MAPS ════ */
-window.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(window.location.search);
-  // Maps terkadang menaruh link di parameter 'text', kadang di 'url'
-  const sharedText = params.get('text') || params.get('url'); 
-  
-  // Share handler diabaikan untuk Maps link — user sudah pakai kolom Asal/Tujuan
-});
+/* ════ SHARE TARGET HANDLER ════ */
+function handleShareTarget(){
+  const params=new URLSearchParams(window.location.search);
+  // Google Maps kirim link di param 'text' atau 'url'
+  const raw=params.get('text')||params.get('url')||params.get('title')||"";
+  if(!raw) return;
+
+  // Bersihkan URL dari query string supaya tidak diproses ulang saat refresh
+  window.history.replaceState({},"",window.location.pathname);
+
+  // Cari URL di dalam teks (kadang teks berisi gabungan nama + link)
+  const urlMatch=raw.match(/https?:\/\/[^\s]+/);
+  const url=urlMatch?urlMatch[0]:"";
+
+  // Coba parse URL panjang Google Maps
+  if(url.includes("google.com/maps/dir/")){
+    const m=url.match(/\/maps\/dir\/([^@]+?)(?:\/@|$)/);
+    if(m){
+      const pts=m[1].split("/")
+        .map(p=>decodeURIComponent(p).replace(/\+/g," ").trim())
+        .filter(p=>p);
+      if(pts.length>=2){
+        $("asalIn").value=pts[0];
+        $("tujuanIn").value=pts[pts.length-1];
+        goPage("kalkulator");
+        setSt("ld","⏳ Memproses rute dari Google Maps...");
+        setTimeout(fetchDist, 500);
+        return;
+      }
+    }
+  }
+
+  // Link pendek atau URL lain — taruh di status info, arahkan user isi manual
+  if(url.includes("goo.gl")||url.includes("maps.app")){
+    goPage("kalkulator");
+    setSt("err","⚠️ Link pendek Google Maps diterima tapi tidak bisa diproses otomatis. Silakan isi kolom Asal & Tujuan di bawah.");
+    $("pg-kalkulator").scrollTop=300;
+    return;
+  }
+
+  // Coba ekstrak nama tempat dari teks share biasa
+  // Contoh: "Cek rute ke Taman Nasional Baluran https://..."
+  const namaMatch=raw.replace(url,"").replace(/https?:\/\/[^\s]*/g,"").trim();
+  if(namaMatch.length>3){
+    $("tujuanIn").value=namaMatch.split("\n")[0].trim();
+    goPage("kalkulator");
+    setSt("ld","💡 Tujuan terdeteksi dari share. Isi kolom Asal lalu klik Cari Jarak.");
+    $("pg-kalkulator").scrollTop=300;
+  }
+}
+
+window.addEventListener('DOMContentLoaded', handleShareTarget);
 isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
 if(!isDark) $("themeIcon").textContent="☀️";
@@ -782,9 +1478,109 @@ const savedUpdate=localStorage.getItem("bbm-update");
 if(savedHarga){try{FUEL=JSON.parse(savedHarga)}catch(e){}}
 if(savedUpdate) $("lastUpdate").textContent=savedUpdate;
 
-buildSpeedometer(); initDropdowns(); buildBudgetPills(); hitung();
+buildSpeedometer(); initDropdowns(); buildBudgetPills(); buildTangkiPills(); hitung();
 
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+/* ════ PWA UPDATE ════ */
+let swRegistration=null;
+function doUpdate(){
+  if(swRegistration&&swRegistration.waiting){
+    swRegistration.waiting.postMessage({type:"SKIP_WAITING"});
+  } else {
+    window.location.reload();
+  }
+}
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").then(reg=>{
+    swRegistration=reg;
+    // Cek update saat app dibuka
+    reg.update();
+    // Deteksi SW baru tersedia
+    reg.addEventListener("updatefound",()=>{
+      const newSW=reg.installing;
+      newSW.addEventListener("statechange",()=>{
+        if(newSW.state==="installed"&&navigator.serviceWorker.controller){
+          // Versi baru siap — tampilkan banner update
+          const b=$("updateBanner");
+          if(b) b.style.display="flex";
+        }
+      });
+    });
+  }).catch(()=>{});
+  // Reload otomatis setelah SW baru aktif
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    window.location.reload();
+  });
+}
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<div class="nota-wrap" id="notaWrap">
+  <div class="nota-kertas" id="notaCetak">
+
+    <!-- Logo Pertamina -->
+    <div class="n-logo">
+      <svg class="n-logo-mark" viewBox="0 0 28 22" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,22 8,0 14,10 20,0 28,22" fill="#e00"/><polygon points="4,22 8,10 12,22" fill="#e00" opacity=".5"/>
+      </svg>
+      <span class="n-logo-txt">PERTAMINA</span>
+    </div>
+
+    <!-- SPBU Info -->
+    <div class="n-spbu">
+      <div id="nSpbu" style="font-weight:700">BBM TRACKER</div>
+      <div id="nAlamat">Kalkulator Perjalanan</div>
+    </div>
+
+    <hr class="n-hr">
+
+    <!-- Transaction Header -->
+    <div class="n-row"><span class="nk">No. Transaksi</span><span class="nv" id="nNoTrans">-</span></div>
+    <div class="n-row"><span class="nk">Waktu</span><span class="nv" id="nTanggal">-</span></div>
+
+    <hr class="n-hr">
+
+    <!-- Product -->
+    <div class="n-row"><span class="nk">Nama Produk</span><span class="nv" id="nBBM">-</span></div>
+    <div class="n-row"><span class="nk">Harga/Liter</span><span class="nv" id="nHarga">-</span></div>
+    <div class="n-row"><span class="nk">Volume</span><span class="nv" id="nLiter">-</span></div>
+
+    <hr class="n-hr">
+
+    <!-- Vehicle & Route -->
+    <div class="n-row"><span class="nk">Kendaraan</span><span class="nv" id="nKen">-</span></div>
+    <div class="n-row" id="rowRuteNota"><span class="nk">Rute</span><span class="nv" id="nRute" style="font-size:10px">-</span></div>
+    <div class="n-row"><span class="nk">Est. Jarak</span><span class="nv" id="nJarak">-</span></div>
+    <div class="n-row"><span class="nk">Biaya/KM</span><span class="nv" id="nPerKm">-</span></div>
+    <div class="n-row hidden" id="rowTolNota"><span class="nk">Biaya Tol</span><span class="nv" id="nTol">-</span></div>
+
+    <hr class="n-hr">
+
+    <!-- Payment -->
+    <div class="n-row"><span class="nk">Metode</span><span class="nv">CASH / QRIS</span></div>
+    <div class="n-total-row">
+      <span>Total Harga</span>
+      <span id="nTotal">-</span>
+    </div>
+    <div class="n-pay-row">
+      <span>Uang Tunai</span>
+      <span id="nUang">-</span>
+    </div>
+    <div class="n-pay-row">
+      <span>Kembali</span>
+      <span id="nKembali">Rp 0</span>
+    </div>
+
+    <hr class="n-hr">
+
+    <div class="n-footer">
+      Estimasi otomatis oleh BBM Tracker<br>
+      Konsumsi aktual dapat berbeda<br>
+      "Ride safely &amp; enjoy the trip!"
+    </div>
+    <div class="n-stamp">* CUSTOMER COPY *</div>
+
+  </div>
+</div>
+
 </body>
 </html>
