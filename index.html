@@ -245,26 +245,25 @@ input:focus{border-color:var(--accent)}
 /* ══ NOTA CETAK — THERMAL RECEIPT PERTAMINA ══ */
 .nota-wrap{position:absolute;left:-9999px;top:0;z-index:-1}
 .nota-kertas{
-  width:300px;background:#fff;color:#000;
+  width:320px;background:#fff;color:#000;
   font-family:'Courier New',Courier,monospace;
   font-size:12px;padding:16px 14px 20px;
   box-sizing:border-box;line-height:1.55;
+  text-transform:uppercase;
 }
-.n-logo{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px}
-.n-logo-mark{width:28px;height:22px}
+.n-logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
+.n-logo-mark{width:40px;height:28px}
 .n-logo-txt{font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Arial Black',sans-serif}
-.n-spbu{text-align:center;font-size:11px;line-height:1.4;margin-bottom:10px}
-.n-hr{border:none;border-top:1px dashed #000;margin:7px 0}
+.n-spbu{text-align:center;font-size:14px;line-height:1.3;margin-bottom:10px}
+.n-hr{border:none;border-top:1px dashed #000;margin:6px 0}
 .n-row{display:flex;font-size:12px;margin-bottom:1px}
-.n-row .nk{flex:0 0 120px;color:#000}
+.n-row .nk{flex:0 0 110px;color:#000}
 .n-row .nv{flex:1;color:#000}
 .n-row .nv::before{content:': '}
-.n-total-row{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin:4px 0 2px}
-.n-pay-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:1px}
-.n-center{text-align:center;font-size:11px;color:#333;margin-top:2px}
-.n-footer{text-align:center;font-size:10px;color:#555;margin-top:10px;line-height:1.5;font-style:italic}
-.n-stamp{text-align:center;font-size:11px;font-weight:600;margin-top:8px;letter-spacing:2px}
-
+.n-pay-row{display:flex;justify-content:flex-end;font-size:13px;margin-top:4px}
+.n-center{text-align:center;font-size:12px;color:#000;margin-top:6px}
+.n-footer{text-align:center;font-size:11px;color:#333;margin-top:12px;line-height:1.4;}
+.n-stamp{text-align:center;font-size:12px;font-weight:600;margin-top:16px;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -1145,43 +1144,65 @@ function toggleTol(){
   chev.textContent=hidden?"▼":"▲";
   if(hidden){$("tolIn").value=""; hitung();}
 }
+/* ════ CETAK NOTA PNG (PERTAMINA STYLE) ════ */
+function downloadNota() {
+  // Buka pop-up form pengaturan struk
+  $("notaModal").style.display = "flex";
+}
 
+function eksekusiCetakNota() {
+  $("notaModal").style.display = "none";
+  const btn = $("printBtn");
+  const orig = btn.innerHTML; 
+  btn.innerHTML = "⏳ Sedang memproses..."; 
+  btn.disabled = true;
+  
+  // 1. Ambil Data Kalkulator
+  const fn = FUEL[fi]?.nama || "BBM";
+  const biayaRaw = parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,"")) || 0;
+  const literRaw = ($("cLiter").textContent||"0").replace(" L","");
+  
+  // 2. Generate Data Random/Waktu
+  const noTrans = Math.floor(1000000 + Math.random() * 9000000); // 7 digit random
+  const now = new Date();
+  const tgl = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  
+  // 3. Masukkan Data Form SPBU & Kalkulator ke HTML Nota
+  $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
+  $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
+  $("nShift").textContent = "1";
+  $("nNoTrans").textContent = noTrans;
+  $("nTanggal").textContent = tgl;
+  
+  $("nPompa").textContent = $("inPompa").value || "2";
+  $("nBBM").textContent = fn;
+  $("nHarga").textContent = rp(harga);
+  $("nLiter").textContent = "(L) " + literRaw;
+  $("nTotalAtas").textContent = rp(biayaRaw);
+  $("nTotalBawah").textContent = rp(biayaRaw);
+  $("nOpr").textContent = $("inOpr").value || "ADMIN";
 
-/* ════ CETAK NOTA PNG ════ */
-function downloadNota(){
-  const btn=$("printBtn");
-  const orig=btn.innerHTML; btn.innerHTML="⏳ Cetak..."; btn.disabled=true;
-  const fn=FUEL[fi]?.nama||"BBM", kn=KEN[ki]?.nama||"Kendaraan";
-  const tol=parseFloat($("tolIn")?.value)||0;
-  const biayaRaw=parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,""))||0;
-  const noTrans="BBM"+Date.now().toString().slice(-8);
-  const tgl=new Date().toLocaleString('id-ID',{
-    weekday:'long',day:'2-digit',month:'long',year:'numeric',
-    hour:'2-digit',minute:'2-digit',second:'2-digit'
+  // 4. Logika Teks Subsidi (Pertalite/Solar)
+  if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
+     $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
+     $("nSubsidiMsg").style.display = "block";
+  } else {
+     $("nSubsidiMsg").style.display = "none";
+  }
+
+  // 5. Render ke Gambar
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+    const a = document.createElement('a');
+    a.download = `Struk_SPBU_${noTrans}.png`;
+    a.href = canvas.toDataURL("image/png"); 
+    a.click();
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
   });
-  $("nNoTrans").textContent=noTrans;
-  $("nTanggal").textContent=tgl;
-  $("nBBM").textContent=fn.toUpperCase();
-  $("nHarga").textContent=rp(harga);
-  $("nLiter").textContent="(L) "+($("cLiter").textContent||"-").replace(" L","");
-  $("nKen").textContent=kn;
-  if(mapsLabel){
-    $("nRute").textContent=mapsLabel;
-    $("rowRuteNota").classList.remove("hidden");
-  } else { $("rowRuteNota").classList.add("hidden"); }
-  $("nJarak").textContent=$("cBisa").textContent;
-  $("nPerKm").textContent=$("cPerKm").textContent;
-  $("nUang").textContent=rp(biayaRaw+tol);
-  $("nKembali").textContent="Rp 0";
-  if(tol>0){$("rowTolNota").classList.remove("hidden");$("nTol").textContent=rp(tol);}
-  else $("rowTolNota").classList.add("hidden");
-  $("nTotal").textContent=rp(biayaRaw+tol);
-  html2canvas($("notaCetak"),{scale:2.5,backgroundColor:"#ffffff",useCORS:true}).then(canvas=>{
-    const a=document.createElement('a');
-    a.download="Nota_Pertamina_"+noTrans+".png";
-    a.href=canvas.toDataURL("image/png"); a.click();
-    btn.innerHTML=orig; btn.disabled=false;
-  }).catch(e=>{alert("Gagal cetak: "+e);btn.innerHTML=orig;btn.disabled=false;});
 }
 
 /* ════ SHARE HASIL ════ */
@@ -1514,71 +1535,77 @@ if("serviceWorker" in navigator){
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<div id="notaModal" style="display:none;position:fixed;inset:0;z-index:500;background:#0008;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--s1);border-radius:16px;padding:20px;width:100%;max-width:340px;border:1px solid var(--b1)">
+    <h3 style="margin-bottom:16px;font-size:16px;display:flex;align-items:center;gap:8px">⚙️ Format Struk Pertamina</h3>
+    
+    <div class="sec">
+      <span class="lbl">No. SPBU & Alamat</span>
+      <div class="irow" style="margin-bottom:6px"><input type="text" id="inSpbuNo" placeholder="No SPBU (misal: 54.601.88)" value="54.601.88"></div>
+      <div class="irow"><input type="text" id="inSpbuAlamat" placeholder="Alamat SPBU" value="JL. SULAWESI NO. 8"></div>
+    </div>
+    
+    <div class="sec">
+      <span class="lbl">Detail SPBU</span>
+      <div class="c2">
+        <input type="text" id="inPompa" placeholder="No Pompa" value="2">
+        <input type="text" id="inOpr" placeholder="Nama Operator" value="ADMIN">
+      </div>
+    </div>
+    
+    <div style="font-size:11px;color:var(--mut);margin-bottom:16px;line-height:1.5">
+      💡 Data BBM, Liter, dan Total Harga akan ditarik otomatis dari hasil kalkulator Anda.
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('notaModal').style.display='none'" style="flex:1;padding:11px;border-radius:9px;background:transparent;color:var(--txt);border:1px solid var(--b2);cursor:pointer;font-weight:600">Batal</button>
+      <button onclick="eksekusiCetakNota()" style="flex:1;padding:11px;border-radius:9px;background:#3b82f6;color:#fff;border:none;cursor:pointer;font-weight:600">🖨️ Cetak</button>
+    </div>
+  </div>
+</div>
+
 <div class="nota-wrap" id="notaWrap">
   <div class="nota-kertas" id="notaCetak">
-
-    <!-- Logo Pertamina -->
+    
     <div class="n-logo">
-      <svg class="n-logo-mark" viewBox="0 0 28 22" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="0,22 8,0 14,10 20,0 28,22" fill="#e00"/><polygon points="4,22 8,10 12,22" fill="#e00" opacity=".5"/>
+      <svg class="n-logo-mark" viewBox="0 0 50 35" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="12,0 24,0 12,18 0,18" fill="#000"/>
+        <polygon points="28,0 40,0 28,18 16,18" fill="#000"/>
+        <polygon points="22,20 34,20 22,35 10,35" fill="#000"/>
       </svg>
       <span class="n-logo-txt">PERTAMINA</span>
     </div>
 
-    <!-- SPBU Info -->
     <div class="n-spbu">
-      <div id="nSpbu" style="font-weight:700">BBM TRACKER</div>
-      <div id="nAlamat">Kalkulator Perjalanan</div>
+      <div id="nSpbu" style="font-size:18px;margin-bottom:2px">54.601.88</div>
+      <div id="nAlamat" style="font-size:12px;font-weight:normal">SPBU SULAWESI NO 8<br>JL. SULAWESI NO 8</div>
     </div>
 
-    <hr class="n-hr">
-
-    <!-- Transaction Header -->
-    <div class="n-row"><span class="nk">No. Transaksi</span><span class="nv" id="nNoTrans">-</span></div>
-    <div class="n-row"><span class="nk">Waktu</span><span class="nv" id="nTanggal">-</span></div>
+    <div class="n-row" style="margin-top:6px"><span class="nk" style="flex:0 0 85px">Shift</span><span class="nv" id="nShift">1</span></div>
+    <div class="n-row"><span class="nk" style="flex:0 0 85px">No. Trans</span><span class="nv" id="nNoTrans">-</span></div>
+    <div class="n-row"><span class="nk" style="flex:0 0 85px">Waktu</span><span class="nv" id="nTanggal">-</span></div>
 
     <hr class="n-hr">
 
-    <!-- Product -->
+    <div class="n-row"><span class="nk">Pulau/Pompa</span><span class="nv" id="nPompa">2</span></div>
     <div class="n-row"><span class="nk">Nama Produk</span><span class="nv" id="nBBM">-</span></div>
     <div class="n-row"><span class="nk">Harga/Liter</span><span class="nv" id="nHarga">-</span></div>
     <div class="n-row"><span class="nk">Volume</span><span class="nv" id="nLiter">-</span></div>
+    <div class="n-row"><span class="nk">Total Harga</span><span class="nv" id="nTotalAtas">-</span></div>
+    <div class="n-row"><span class="nk">Operator</span><span class="nv" id="nOpr">ADMIN</span></div>
 
     <hr class="n-hr">
 
-    <!-- Vehicle & Route -->
-    <div class="n-row"><span class="nk">Kendaraan</span><span class="nv" id="nKen">-</span></div>
-    <div class="n-row" id="rowRuteNota"><span class="nk">Rute</span><span class="nv" id="nRute" style="font-size:10px">-</span></div>
-    <div class="n-row"><span class="nk">Est. Jarak</span><span class="nv" id="nJarak">-</span></div>
-    <div class="n-row"><span class="nk">Biaya/KM</span><span class="nv" id="nPerKm">-</span></div>
-    <div class="n-row hidden" id="rowTolNota"><span class="nk">Biaya Tol</span><span class="nv" id="nTol">-</span></div>
+    <div style="margin-bottom:2px">CASH</div>
+    <div class="n-pay-row"><span id="nTotalBawah" style="font-weight:600">-</span></div>
 
     <hr class="n-hr">
 
-    <!-- Payment -->
-    <div class="n-row"><span class="nk">Metode</span><span class="nv">CASH / QRIS</span></div>
-    <div class="n-total-row">
-      <span>Total Harga</span>
-      <span id="nTotal">-</span>
-    </div>
-    <div class="n-pay-row">
-      <span>Uang Tunai</span>
-      <span id="nUang">-</span>
-    </div>
-    <div class="n-pay-row">
-      <span>Kembali</span>
-      <span id="nKembali">Rp 0</span>
-    </div>
-
-    <hr class="n-hr">
-
-    <div class="n-footer">
-      Estimasi otomatis oleh BBM Tracker<br>
-      Konsumsi aktual dapat berbeda<br>
-      "Ride safely &amp; enjoy the trip!"
-    </div>
+    <div class="n-footer" id="nSubsidiMsg"></div>
+    
+    <div class="n-center">TERIMA KASIH DAN SELAMAT JALAN</div>
     <div class="n-stamp">* CUSTOMER COPY *</div>
-
   </div>
 </div>
 
