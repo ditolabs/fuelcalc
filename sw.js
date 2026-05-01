@@ -1,10 +1,11 @@
-const CACHE = 'bbm-v4';
+const CACHE = 'bbm-v5';
 const ASSETS = [
   '/fuelcalc/',
   '/fuelcalc/index.html',
   '/fuelcalc/manifest.json',
   '/fuelcalc/icon.svg',
-  '/fuelcalc/tol.json'
+  '/fuelcalc/tol.json',
+  '/fuelcalc/1001176930.png'
 ];
 
 self.addEventListener('install', e => {

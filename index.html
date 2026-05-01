@@ -1191,7 +1191,7 @@ function eksekusiCetakNota() {
   }
 
   // 5. Render ke Gambar
-  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
     const a = document.createElement('a');
     a.download = `Struk_SPBU_${noTrans}.png`;
     a.href = canvas.toDataURL("image/png"); 
@@ -1568,19 +1568,14 @@ if("serviceWorker" in navigator){
 <div class="nota-wrap" id="notaWrap">
   <div class="nota-kertas" id="notaCetak">
     
-    <div class="n-logo">
-      <svg class="n-logo-mark" viewBox="0 0 50 35" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="12,0 24,0 12,18 0,18" fill="#000"/>
-        <polygon points="28,0 40,0 28,18 16,18" fill="#000"/>
-        <polygon points="22,20 34,20 22,35 10,35" fill="#000"/>
-      </svg>
-      <span class="n-logo-txt">PERTAMINA</span>
-    </div>
+ <div class="n-logo" style="text-align:center;margin-bottom:10px;">
+  <img src="1001176930.png" alt="PERTAMINA" style="max-width:140px;height:auto;filter:grayscale(100%);">
+</div>
 
-    <div class="n-spbu">
-      <div id="nSpbu" style="font-size:18px;margin-bottom:2px">54.601.88</div>
-      <div id="nAlamat" style="font-size:12px;font-weight:normal">SPBU SULAWESI NO 8<br>JL. SULAWESI NO 8</div>
-    </div>
+ <div class="n-spbu">
+  <div id="nSpbu" style="font-size:16px;margin-bottom:2px">54.601.88</div>
+  <div id="nAlamat" style="font-size:11px;font-weight:normal">SPBU SULAWESI NO 8<br>JL. SULAWESI NO 8</div>
+</div>
 
     <div class="n-row" style="margin-top:6px"><span class="nk" style="flex:0 0 85px">Shift</span><span class="nv" id="nShift">1</span></div>
     <div class="n-row"><span class="nk" style="flex:0 0 85px">No. Trans</span><span class="nv" id="nNoTrans">-</span></div>

@@ -10,7 +10,7 @@
 GITHUB_USER="ditolabs"
 REPO="fuelcalc"
 BRANCH="main"
-FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json")
+FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json" "1001176930.png")
 
 echo ""
 echo "╔══════════════════════════════════════╗"
