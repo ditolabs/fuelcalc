@@ -322,10 +322,18 @@ input:focus{border-color:var(--accent)}
 
     <div class="maps-box">
       <div class="maps-title" style="font-size:10px;color:var(--mut);margin-bottom:10px">📍 Estimasi Jarak Rute</div>
-      <div class="irow"><input type="text" id="asalIn" placeholder="Asal (contoh: Surabaya)"><input type="text" id="tujuanIn" placeholder="Tujuan (contoh: Banyuwangi)"></div>
+      
+      <div class="irow" style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; width:100%; gap:6px;">
+          <input type="text" id="asalIn" placeholder="Asal (contoh: Surabaya)">
+          <button onclick="useMyLocation()" id="myLocBtn" style="background:var(--s2); border:1px solid var(--b2); border-radius:10px; padding:0 14px; cursor:pointer; font-size:16px; transition:0.2s;" title="Gunakan Lokasi Saat Ini">📍</button>
+        </div>
+        <input type="text" id="tujuanIn" placeholder="Tujuan (contoh: Banyuwangi)">
+      </div>
       <button class="maps-btn" id="mapsBtn" onclick="fetchDist()">Cari Jarak & Hitung</button>
       <div class="maps-st" id="mapsSt"></div>
     </div>
+
 
     <div class="sec">
       <span class="lbl">Mode Input</span>
@@ -697,6 +705,27 @@ async function refreshHarga(){
 }
 
 /* ════ MAPS LOGIC ════ */
+function useMyLocation() {
+  const btn = $("myLocBtn");
+  if (!("geolocation" in navigator)) {
+    alert("Browser Anda tidak mendukung fitur lokasi.");
+    return;
+  }
+  
+  btn.textContent = "⏳";
+  
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      $("asalIn").value = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+      btn.textContent = "📍";
+    },
+    (err) => {
+      alert("Gagal mengambil lokasi. Pastikan GPS menyala dan izin diberikan.");
+      btn.textContent = "📍";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
 function setSt(t,h){const e=$("mapsSt");e.className="maps-st "+t;e.innerHTML=h}
 async function fetchDist(){
   const asal=$("asalIn").value.trim(); const tj=$("tujuanIn").value.trim();
@@ -804,16 +833,19 @@ async function fetchJson(url){
   return r.json();
 }
 
+function isCoord(s){return /^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$/.test(s.trim())}
+
 async function geo(place){
   const q=place.trim();
-  // 1. Database lokal — paling cepat & tidak perlu internet
+  if(isCoord(q)){ const [la,lo]=q.split(",").map(Number); return {la,lo}; }
+  // 1. Database lokal
   const local=geoFromDB(q); if(local) return local;
-  // 2. Photon (Komoot) — CORS terbuka
+  // 2. Photon (Komoot)
   try{
     const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q+" Indonesia")}&limit=1`);
     if(d.features&&d.features.length){const[lo,la]=d.features[0].geometry.coordinates;return{la,lo};}
   }catch(e){}
-  // 3. Nominatim via CORS proxy
+  // 3. Nominatim
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+", Indonesia")}&format=json&limit=1&countrycodes=id`;
     const d=await fetchJson("https://api.allorigins.win/raw?url="+encodeURIComponent(url));
