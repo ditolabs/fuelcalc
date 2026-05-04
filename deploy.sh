@@ -10,7 +10,8 @@
 GITHUB_USER="ditolabs"
 REPO="fuelcalc"
 BRANCH="main"
-FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json" "1001176930.png")
+FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json" "harga.json" "scrape_harga.py")
+WORKFLOW_FILE=".github/workflows/update_harga.yml"
 
 echo ""
 echo "╔══════════════════════════════════════╗"
@@ -118,6 +119,37 @@ for FILE in "${FILES[@]}"; do
 done
 
 rm -rf "$TMPDIR_DEPLOY"
+
+# ── Upload GitHub Actions workflow ──
+echo ""
+echo "⚙️  Mengupload GitHub Actions workflow..."
+if [ -f "$WORKFLOW_FILE" ]; then
+  TMPDIR2=$(mktemp -d)
+  TMP_B64="$TMPDIR2/workflow.b64"
+  TMP_JSON="$TMPDIR2/workflow.json"
+  base64 -w 0 "$WORKFLOW_FILE" > "$TMP_B64" 2>/dev/null || base64 "$WORKFLOW_FILE" | tr -d '\n' > "$TMP_B64"
+  EXISTING=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
+    "https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$WORKFLOW_FILE")
+  SHA=$(echo "$EXISTING" | grep '"sha"' | head -1 | sed 's/.*"sha": *"\([^"]*\)".*/\1/')
+  CONTENT=$(cat "$TMP_B64")
+  if [ -n "$SHA" ]; then
+    printf '{"message":"Update workflow","content":"%s","sha":"%s","branch":"%s"}' "$CONTENT" "$SHA" "$BRANCH" > "$TMP_JSON"
+  else
+    printf '{"message":"Add scraping workflow","content":"%s","branch":"%s"}' "$CONTENT" "$BRANCH" > "$TMP_JSON"
+  fi
+  RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" -H "$HEADER_VERSION" \
+    -H "Content-Type: application/json" --data-binary "@$TMP_JSON" \
+    "https://api.github.com/repos/$GITHUB_USER/$REPO/contents/$WORKFLOW_FILE")
+  if [ "$RESULT" = "200" ] || [ "$RESULT" = "201" ]; then
+    echo "  ✅ GitHub Actions workflow berhasil di-push."
+  else
+    echo "  ❌ Workflow gagal (HTTP $RESULT) — buat folder .github/workflows/ manual di repo."
+  fi
+  rm -rf "$TMPDIR2"
+else
+  echo "  ⚠️  File $WORKFLOW_FILE tidak ditemukan, dilewati."
+fi
 
 # ── Aktifkan GitHub Pages (jika belum aktif) ──
 echo ""

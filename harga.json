@@ -1,0 +1,12 @@
+{
+  "updated": "2026-05-04",
+  "source": "manual",
+  "wilayah": "Jawa-Bali",
+  "bbm": [
+    {"nama": "Pertalite",       "harga": 10000, "warna": "#22c55e"},
+    {"nama": "Pertamax",        "harga": 12300, "warna": "#f97316"},
+    {"nama": "Pertamax Turbo",  "harga": 19900, "warna": "#ef4444"},
+    {"nama": "Dexlite",         "harga": 26000, "warna": "#3b82f6"},
+    {"nama": "Pertamina Dex",   "harga": 27900, "warna": "#8b5cf6"}
+  ]
+}

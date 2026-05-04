@@ -1,0 +1,44 @@
+name: Update Harga BBM
+
+on:
+  schedule:
+    # Jalan setiap hari jam 07:00 WIB (00:00 UTC)
+    - cron: '0 0 * * *'
+  # Bisa juga dijalankan manual dari GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 playwright lxml
+          && playwright install chromium --with-deps
+
+      - name: Run scraper
+        run: python scrape_harga.py
+
+      - name: Check if harga.json changed
+        id: check_changes
+        run: |
+          git diff --quiet harga.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit & push jika ada perubahan
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "BBM Price Bot"
+          git config user.email "bot@bbmtracker.id"
+          git add harga.json
+          git commit -m "🤖 Update harga BBM $(date +'%d %b %Y')"
+          git push

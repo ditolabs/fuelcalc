@@ -528,8 +528,11 @@ input:focus{border-color:var(--accent)}
 <script>
 /* ════ DATA & STATE ════ */
 let FUEL=[
-  {nama:"Pertalite",h:10000,w:"#22c55e"},{nama:"Pertamax",h:12300,w:"#f97316"},
-  {nama:"Pertamax Turbo",h:19400,w:"#ef4444"},{nama:"Dexlite",h:23600,w:"#3b82f6"}
+  {nama:"Pertalite",      h:10000, w:"#22c55e"},
+  {nama:"Pertamax",       h:12300, w:"#f97316"},
+  {nama:"Pertamax Turbo", h:19900, w:"#ef4444"},
+  {nama:"Dexlite",        h:26000, w:"#3b82f6"},
+  {nama:"Pertamina Dex",  h:27900, w:"#8b5cf6"},
 ];
 const KEN=[{nama:"Motor Matic",k:45},{nama:"Motor Sport",k:35},{nama:"Mobil City",k:18},{nama:"Mobil SUV",k:12}];
 const BQUICK=[20000,50000,100000,150000,200000];
@@ -1191,7 +1194,7 @@ function eksekusiCetakNota() {
   }
 
   // 5. Render ke Gambar
-  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
     const a = document.createElement('a');
     a.download = `Struk_SPBU_${noTrans}.png`;
     a.href = canvas.toDataURL("image/png"); 
@@ -1493,13 +1496,41 @@ isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
 if(!isDark) $("themeIcon").textContent="☀️";
 
-// Ambil data harga lokal jika ada
-const savedHarga=localStorage.getItem("bbm-harga");
-const savedUpdate=localStorage.getItem("bbm-update");
-if(savedHarga){try{FUEL=JSON.parse(savedHarga)}catch(e){}}
-if(savedUpdate) $("lastUpdate").textContent=savedUpdate;
+/* ── Load harga dari harga.json (auto-update via GitHub Actions) ── */
+async function loadHargaJSON(){
+  try{
+    const r=await fetch("harga.json?t="+Date.now()); // cache-bust
+    if(!r.ok) throw new Error("not found");
+    const d=await r.json();
+    if(d.bbm&&d.bbm.length>=3){
+      // Update FUEL array dari JSON
+      FUEL=d.bbm.map(b=>({nama:b.nama,h:b.harga,w:b.warna}));
+      // Simpan ke localStorage sebagai cache
+      localStorage.setItem("bbm-harga",JSON.stringify(FUEL));
+      localStorage.setItem("bbm-update",d.updated||"");
+      // Update label
+      const lbl=$("lastUpdate");
+      if(lbl&&d.updated){
+        const tgl=new Date(d.updated).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
+        lbl.textContent=tgl+(d.source==="scraped"?" ✓":"");
+      }
+      // Rebuild UI dengan harga baru
+      if(!cfuel){ harga=FUEL[fi]?.h||FUEL[0].h; }
+      initDropdowns(); buildBudgetPills(); hitung();
+    }
+  }catch(e){
+    // Gagal fetch — pakai localStorage cache atau hardcode
+    const savedHarga=localStorage.getItem("bbm-harga");
+    const savedUpdate=localStorage.getItem("bbm-update");
+    if(savedHarga){try{FUEL=JSON.parse(savedHarga)}catch(e2){}}
+    if(savedUpdate) { const lbl=$("lastUpdate"); if(lbl) lbl.textContent=savedUpdate+" (cache)"; }
+    console.warn("harga.json tidak tersedia, pakai cache:",e.message);
+  }
+}
 
 buildSpeedometer(); initDropdowns(); buildBudgetPills(); buildTangkiPills(); hitung();
+// Load harga terbaru setelah UI siap
+loadHargaJSON();
 
 /* ════ PWA UPDATE ════ */
 let swRegistration=null;
@@ -1568,14 +1599,19 @@ if("serviceWorker" in navigator){
 <div class="nota-wrap" id="notaWrap">
   <div class="nota-kertas" id="notaCetak">
     
- <div class="n-logo" style="text-align:center;margin-bottom:10px;">
-  <img src="1001176930.png" alt="PERTAMINA" style="max-width:140px;height:auto;filter:grayscale(100%);">
-</div>
+    <div class="n-logo">
+      <svg class="n-logo-mark" viewBox="0 0 50 35" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="12,0 24,0 12,18 0,18" fill="#000"/>
+        <polygon points="28,0 40,0 28,18 16,18" fill="#000"/>
+        <polygon points="22,20 34,20 22,35 10,35" fill="#000"/>
+      </svg>
+      <span class="n-logo-txt">PERTAMINA</span>
+    </div>
 
- <div class="n-spbu">
-  <div id="nSpbu" style="font-size:16px;margin-bottom:2px">54.601.88</div>
-  <div id="nAlamat" style="font-size:11px;font-weight:normal">SPBU SULAWESI NO 8<br>JL. SULAWESI NO 8</div>
-</div>
+    <div class="n-spbu">
+      <div id="nSpbu" style="font-size:18px;margin-bottom:2px">54.601.88</div>
+      <div id="nAlamat" style="font-size:12px;font-weight:normal">SPBU SULAWESI NO 8<br>JL. SULAWESI NO 8</div>
+    </div>
 
     <div class="n-row" style="margin-top:6px"><span class="nk" style="flex:0 0 85px">Shift</span><span class="nv" id="nShift">1</span></div>
     <div class="n-row"><span class="nk" style="flex:0 0 85px">No. Trans</span><span class="nv" id="nNoTrans">-</span></div>

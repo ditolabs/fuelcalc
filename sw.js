@@ -5,7 +5,7 @@ const ASSETS = [
   '/fuelcalc/manifest.json',
   '/fuelcalc/icon.svg',
   '/fuelcalc/tol.json',
-  '/fuelcalc/1001176930.png'
+  '/fuelcalc/harga.json'
 ];
 
 self.addEventListener('install', e => {
