@@ -6,6 +6,7 @@ const ASSETS = [
   '/fuelcalc/icon.svg',
   '/fuelcalc/tol.json',
   '/fuelcalc/harga.json'
+  '/fuelcalc/update_harga.yml'
 ];
 
 self.addEventListener('install', e => {

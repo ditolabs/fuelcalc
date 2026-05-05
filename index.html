@@ -1131,27 +1131,126 @@ async function loadTol(){
 
 async function cariTol(asalKota,tujuanKota){
   const data=await loadTol(); if(!data) return null;
-  const {TOL_DB,KOTA_RUAS,RUAS_URUT}=data;
-  const a=asalKota.toLowerCase().trim(), t=tujuanKota.toLowerCase().trim();
-  let matchedRuas=new Set();
-  for(const kr of KOTA_RUAS){
-    const hitA=kr.kota.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
-    const hitT=kr.kota.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
-    if(hitA||hitT) kr.ruas.forEach(r=>matchedRuas.add(r));
+  const {TOL_DB,RUAS_URUT}=data;
+
+  /* ── RUAS_ENDPOINT: koordinat representatif tiap ruas ──
+     Dipakai untuk memilih ruas yang tepat berdasarkan arah perjalanan.
+     [lat_barat/selatan, lon_barat/selatan, lat_timur/utara, lon_timur/utara] */
+  const RUAS_COORD={
+    "Tangerang-Merak":          [-6.178,106.63, -6.002,106.01],
+    "Jakarta-Tangerang":        [-6.209,106.84, -6.178,106.63],
+    "Jakarta-Cikampek":         [-6.209,106.84, -6.421,107.45],
+    "Cikampek-Palimanan":       [-6.421,107.45, -6.722,108.47],
+    "Palimanan-Kanci":          [-6.722,108.47, -6.760,108.57],
+    "Kanci-Pejagan":            [-6.760,108.57, -6.875,109.04],
+    "Pejagan-Pemalang":         [-6.875,109.04, -6.889,109.37],
+    "Pemalang-Batang":          [-6.889,109.37, -6.910,109.73],
+    "Batang-Semarang":          [-6.910,109.73, -7.005,110.43],
+    "Semarang-Batang":          [-7.005,110.43, -6.910,109.73],
+    "Semarang-Solo":            [-7.005,110.43, -7.575,110.82],
+    "Solo-Ngawi":               [-7.575,110.82, -7.400,111.45],
+    "Ngawi-Kertosono":          [-7.400,111.45, -7.604,111.91],
+    "Kertosono-Mojokerto":      [-7.604,111.91, -7.471,112.43],
+    "Surabaya-Mojokerto":       [-7.250,112.76, -7.471,112.43],
+    "Surabaya-Gempol":          [-7.250,112.76, -7.580,112.71],
+    "Gempol-Pandaan":           [-7.580,112.71, -7.645,112.69],
+    "Gempol-Pasuruan":          [-7.580,112.71, -7.645,112.90],
+    "Pasuruan-Probolinggo Seksi I - IVA": [-7.645,112.90, -7.754,113.21],
+    "Semarang Seksi A":         [-7.005,110.43, -7.030,110.44],
+  };
+
+  /* ── Resolve nama kota → koordinat ── */
+  function resolveCoord(str){
+    const s=str.trim();
+    // Koordinat langsung
+    if(isCoord(s)){
+      const[la,lo]=s.split(",").map(Number);
+      return{la,lo,nama:s};
+    }
+    // Cari di KOTA_DB (exact / partial)
+    const k=s.toLowerCase();
+    if(KOTA_DB[k]) return{...KOTA_DB[k],nama:k};
+    for(const[key,val] of Object.entries(KOTA_DB)){
+      if(k.includes(key)||key.includes(k.split(" ")[0])) return{...val,nama:key};
+    }
+    return null;
   }
-  if(!matchedRuas.size) return null;
+
+  const cA=resolveCoord(asalKota), cT=resolveCoord(tujuanKota);
+
+  /* ── Tentukan ruas yang relevan berdasarkan koordinat ──
+     Strategi: cek jarak pusat ruas ke titik asal/tujuan */
+  function pusatRuas(nama){
+    const rc=RUAS_COORD[nama]; if(!rc) return null;
+    return{la:(rc[0]+rc[2])/2, lo:(rc[1]+rc[3])/2};
+  }
+
+  // Untuk setiap ruas, hitung skor relevansi dari kedua titik
+  function skorRuas(nama, coordA, coordT){
+    const pusat=pusatRuas(nama); if(!pusat) return Infinity;
+    const dA=coordA?haversine(coordA.la,coordA.lo,pusat.la,pusat.lo):999;
+    const dT=coordT?haversine(coordT.la,coordT.lo,pusat.la,pusat.lo):999;
+    return Math.min(dA,dT);
+  }
+
+  /* ── Pilih ruas terbaik untuk asal dan tujuan ── */
+  function pilihRuasTerdekat(coord, maxKm=120){
+    if(!coord) return [];
+    return RUAS_URUT.filter(r=>{
+      const p=pusatRuas(r); if(!p) return false;
+      return haversine(coord.la,coord.lo,p.la,p.lo)<maxKm;
+    }).sort((a,b)=>skorRuas(a,coord,null)-skorRuas(b,coord,null));
+  }
+
+  const ruasDekatA = pilihRuasTerdekat(cA);
+  const ruasDekatT = pilihRuasTerdekat(cT);
+
+  if(!ruasDekatA.length && !ruasDekatT.length) return null;
+
+  /* ── Tentukan range indeks ruas ── */
+  const idxA = ruasDekatA.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
+  const idxT = ruasDekatT.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
+
+  // Jika salah satu tidak ada → pakai yang ada
+  const allIdx=[...idxA,...idxT];
+  if(!allIdx.length) return null;
+
+  let startIdx=Math.min(...allIdx), endIdx=Math.max(...allIdx);
+
+  /* ── Ambil ruas yang dilalui ── */
+  // Filter: hanya ruas yang letaknya "di antara" asal dan tujuan
+  let ruasDilalui=RUAS_URUT.slice(startIdx, endIdx+1);
+
+  // Khusus Surabaya: pilih Surabaya-Gempol atau Surabaya-Mojokerto berdasarkan arah
+  if(ruasDilalui.includes("Surabaya-Gempol")&&ruasDilalui.includes("Surabaya-Mojokerto")){
+    // Tentukan arah: ke timur (lon besar) → Surabaya-Gempol
+    //               ke barat/selatan → Surabaya-Mojokerto
+    const loA=cA?.lo||112.77, loT=cT?.lo||112.77;
+    const keTimur=loT>loA;
+    if(keTimur){
+      ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Mojokerto");
+    } else {
+      ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Gempol");
+    }
+  }
+  // Hapus Semarang-Batang jika sudah ada Batang-Semarang (duplikat arah berlawanan)
+  if(ruasDilalui.includes("Batang-Semarang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Semarang-Batang");
+  if(ruasDilalui.includes("Semarang-Batang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Batang-Semarang");
+
+  /* ── Hitung tarif ── */
   const perRuas={};
   for(const r of TOL_DB){
-    if(matchedRuas.has(r.r)&&(!perRuas[r.r]||r.g1>perRuas[r.r].g1)) perRuas[r.r]=r;
+    if(ruasDilalui.includes(r.r)&&(!perRuas[r.r]||r.g1>perRuas[r.r].g1)) perRuas[r.r]=r;
   }
-  const ruasDilalui=RUAS_URUT.filter(r=>matchedRuas.has(r)&&perRuas[r]);
-  if(!ruasDilalui.length) return null;
   let totalG1=0,totalG2=0,totalG3=0; const detail=[];
   for(const r of ruasDilalui){
-    totalG1+=perRuas[r].g1;totalG2+=perRuas[r].g2;totalG3+=perRuas[r].g3;
-    detail.push({ruas:r,g1:perRuas[r].g1,g2:perRuas[r].g2,g3:perRuas[r].g3});
+    if(perRuas[r]){
+      totalG1+=perRuas[r].g1;totalG2+=perRuas[r].g2;totalG3+=perRuas[r].g3;
+      detail.push({ruas:r,g1:perRuas[r].g1,g2:perRuas[r].g2,g3:perRuas[r].g3});
+    }
   }
-  return {totalG1,totalG2,totalG3,detail};
+  if(!totalG1) return null;
+  return{totalG1,totalG2,totalG3,detail};
 }
 
 async function autoFillTol(){
