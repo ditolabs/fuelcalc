@@ -1131,44 +1131,20 @@ async function loadTol(){
 
 async function cariTol(asalKota,tujuanKota){
   const data=await loadTol(); if(!data) return null;
-  const {TOL_DB,RUAS_URUT}=data;
+  const {TOL_DB,KOTA_RUAS,RUAS_URUT,RUAS_COORD,RUTE_LANGSUNG}=data;
 
-  /* ── RUAS_ENDPOINT: koordinat representatif tiap ruas ──
-     Dipakai untuk memilih ruas yang tepat berdasarkan arah perjalanan.
-     [lat_barat/selatan, lon_barat/selatan, lat_timur/utara, lon_timur/utara] */
-  const RUAS_COORD={
-    "Tangerang-Merak":          [-6.178,106.63, -6.002,106.01],
-    "Jakarta-Tangerang":        [-6.209,106.84, -6.178,106.63],
-    "Jakarta-Cikampek":         [-6.209,106.84, -6.421,107.45],
-    "Cikampek-Palimanan":       [-6.421,107.45, -6.722,108.47],
-    "Palimanan-Kanci":          [-6.722,108.47, -6.760,108.57],
-    "Kanci-Pejagan":            [-6.760,108.57, -6.875,109.04],
-    "Pejagan-Pemalang":         [-6.875,109.04, -6.889,109.37],
-    "Pemalang-Batang":          [-6.889,109.37, -6.910,109.73],
-    "Batang-Semarang":          [-6.910,109.73, -7.005,110.43],
-    "Semarang-Batang":          [-7.005,110.43, -6.910,109.73],
-    "Semarang-Solo":            [-7.005,110.43, -7.575,110.82],
-    "Solo-Ngawi":               [-7.575,110.82, -7.400,111.45],
-    "Ngawi-Kertosono":          [-7.400,111.45, -7.604,111.91],
-    "Kertosono-Mojokerto":      [-7.604,111.91, -7.471,112.43],
-    "Surabaya-Mojokerto":       [-7.250,112.76, -7.471,112.43],
-    "Surabaya-Gempol":          [-7.250,112.76, -7.580,112.71],
-    "Gempol-Pandaan":           [-7.580,112.71, -7.645,112.69],
-    "Gempol-Pasuruan":          [-7.580,112.71, -7.645,112.90],
-    "Pasuruan-Probolinggo Seksi I - IVA": [-7.645,112.90, -7.754,113.21],
-    "Semarang Seksi A":         [-7.005,110.43, -7.030,110.44],
-  };
+  /* ── Normalize nama kota ── */
+  function normKota(s){
+    return s.toLowerCase().trim()
+      .replace(/\bkab\.?\s*/,'').replace(/\bkota\s*/,'')
+      .replace(/kabupaten\s*/,'').split(',')[0].trim();
+  }
 
-  /* ── Resolve nama kota → koordinat ── */
+  /* ── Resolve nama / koordinat → {la,lo,nama} ── */
   function resolveCoord(str){
     const s=str.trim();
-    // Koordinat langsung
-    if(isCoord(s)){
-      const[la,lo]=s.split(",").map(Number);
-      return{la,lo,nama:s};
-    }
-    // Cari di KOTA_DB (exact / partial)
-    const k=s.toLowerCase();
+    if(isCoord(s)){const[la,lo]=s.split(",").map(Number);return{la,lo,nama:s};}
+    const k=normKota(s);
     if(KOTA_DB[k]) return{...KOTA_DB[k],nama:k};
     for(const[key,val] of Object.entries(KOTA_DB)){
       if(k.includes(key)||key.includes(k.split(" ")[0])) return{...val,nama:key};
@@ -1176,68 +1152,76 @@ async function cariTol(asalKota,tujuanKota){
     return null;
   }
 
+  /* ── STEP 1: Cari di RUTE_LANGSUNG terlebih dahulu ──
+     Ini yang paling akurat karena berdasarkan data BPJT aktual */
+  if(RUTE_LANGSUNG){
+    const a=normKota(asalKota), t=normKota(tujuanKota);
+    for(const rute of RUTE_LANGSUNG){
+      const kotaA=rute.kota.map(k=>k.toLowerCase());
+      const kotaT=rute.tujuan.map(k=>k.toLowerCase());
+      // Cek arah A→T
+      const hitA=kotaA.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
+      const hitT=kotaT.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
+      // Cek arah T→A (rute bersifat bidirectional)
+      const hitA2=kotaT.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
+      const hitT2=kotaA.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
+      if((hitA&&hitT)||(hitA2&&hitT2)){
+        return{
+          totalG1:rute.g1, totalG2:rute.g2, totalG3:rute.g3,
+          detail:[{ruas:rute.via, g1:rute.g1, g2:rute.g2, g3:rute.g3}],
+          sumber:"BPJT (terverifikasi)"
+        };
+      }
+    }
+  }
+
+  /* ── STEP 2: Fallback ke algoritma berbasis koordinat ── */
   const cA=resolveCoord(asalKota), cT=resolveCoord(tujuanKota);
+  if(!cA&&!cT) return null;
 
-  /* ── Tentukan ruas yang relevan berdasarkan koordinat ──
-     Strategi: cek jarak pusat ruas ke titik asal/tujuan */
   function pusatRuas(nama){
-    const rc=RUAS_COORD[nama]; if(!rc) return null;
-    return{la:(rc[0]+rc[2])/2, lo:(rc[1]+rc[3])/2};
+    const rc=RUAS_COORD?.[nama]; if(!rc) return null;
+    return{la:(rc[0]+rc[2])/2,lo:(rc[1]+rc[3])/2};
   }
-
-  // Untuk setiap ruas, hitung skor relevansi dari kedua titik
-  function skorRuas(nama, coordA, coordT){
-    const pusat=pusatRuas(nama); if(!pusat) return Infinity;
-    const dA=coordA?haversine(coordA.la,coordA.lo,pusat.la,pusat.lo):999;
-    const dT=coordT?haversine(coordT.la,coordT.lo,pusat.la,pusat.lo):999;
-    return Math.min(dA,dT);
+  function skorRuas(nama,coord){
+    const p=pusatRuas(nama); if(!p||!coord) return Infinity;
+    return haversine(coord.la,coord.lo,p.la,p.lo);
   }
-
-  /* ── Pilih ruas terbaik untuk asal dan tujuan ── */
-  function pilihRuasTerdekat(coord, maxKm=120){
+  function pilihRuasTerdekat(coord,maxKm=130){
     if(!coord) return [];
     return RUAS_URUT.filter(r=>{
       const p=pusatRuas(r); if(!p) return false;
       return haversine(coord.la,coord.lo,p.la,p.lo)<maxKm;
-    }).sort((a,b)=>skorRuas(a,coord,null)-skorRuas(b,coord,null));
+    }).sort((a,b)=>skorRuas(a,coord)-skorRuas(b,coord));
   }
 
-  const ruasDekatA = pilihRuasTerdekat(cA);
-  const ruasDekatT = pilihRuasTerdekat(cT);
-
-  if(!ruasDekatA.length && !ruasDekatT.length) return null;
-
-  /* ── Tentukan range indeks ruas ── */
-  const idxA = ruasDekatA.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
-  const idxT = ruasDekatT.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
-
-  // Jika salah satu tidak ada → pakai yang ada
+  const ruasDekatA=pilihRuasTerdekat(cA), ruasDekatT=pilihRuasTerdekat(cT);
+  const idxA=ruasDekatA.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
+  const idxT=ruasDekatT.map(r=>RUAS_URUT.indexOf(r)).filter(i=>i!==-1);
   const allIdx=[...idxA,...idxT];
   if(!allIdx.length) return null;
 
   let startIdx=Math.min(...allIdx), endIdx=Math.max(...allIdx);
+  let ruasDilalui=RUAS_URUT.slice(startIdx,endIdx+1);
 
-  /* ── Ambil ruas yang dilalui ── */
-  // Filter: hanya ruas yang letaknya "di antara" asal dan tujuan
-  let ruasDilalui=RUAS_URUT.slice(startIdx, endIdx+1);
-
-  // Khusus Surabaya: pilih Surabaya-Gempol atau Surabaya-Mojokerto berdasarkan arah
+  // Pilih Surabaya-Gempol ATAU Surabaya-Mojokerto berdasarkan arah longitude
   if(ruasDilalui.includes("Surabaya-Gempol")&&ruasDilalui.includes("Surabaya-Mojokerto")){
-    // Tentukan arah: ke timur (lon besar) → Surabaya-Gempol
-    //               ke barat/selatan → Surabaya-Mojokerto
-    const loA=cA?.lo||112.77, loT=cT?.lo||112.77;
-    const keTimur=loT>loA;
-    if(keTimur){
-      ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Mojokerto");
-    } else {
-      ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Gempol");
-    }
+    const loA=cA?.lo??112.77, loT=cT?.lo??112.77;
+    if(loT>loA) ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Mojokerto");
+    else         ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Gempol");
   }
-  // Hapus Semarang-Batang jika sudah ada Batang-Semarang (duplikat arah berlawanan)
+  // Gempol-Pasuruan vs Gempol-Pandaan: pilih berdasarkan tujuan
+  if(ruasDilalui.includes("Gempol-Pasuruan")&&ruasDilalui.includes("Gempol-Pandaan")){
+    const laT=cT?.la??-7.6;
+    // Malang/Pandaan arahnya lebih selatan (lat lebih besar negatif) dari Pasuruan
+    if(laT<-7.6) ruasDilalui=ruasDilalui.filter(r=>r!=="Gempol-Pasuruan");
+    else         ruasDilalui=ruasDilalui.filter(r=>r!=="Gempol-Pandaan"&&r!=="Pandaan-Malang");
+  }
+  // Hapus duplikat arah Batang-Semarang
   if(ruasDilalui.includes("Batang-Semarang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Semarang-Batang");
   if(ruasDilalui.includes("Semarang-Batang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Batang-Semarang");
 
-  /* ── Hitung tarif ── */
+  // Hitung tarif: gunakan tarif maksimal per ruas (estimasi perjalanan penuh)
   const perRuas={};
   for(const r of TOL_DB){
     if(ruasDilalui.includes(r.r)&&(!perRuas[r.r]||r.g1>perRuas[r.r].g1)) perRuas[r.r]=r;
@@ -1250,24 +1234,57 @@ async function cariTol(asalKota,tujuanKota){
     }
   }
   if(!totalG1) return null;
-  return{totalG1,totalG2,totalG3,detail};
+  return{totalG1,totalG2,totalG3,detail,sumber:"estimasi (ruas-based)"};
 }
 
 async function autoFillTol(){
   const asal=$("asalIn").value.trim(), tujuan=$("tujuanIn").value.trim();
   if(!asal||!tujuan) return;
-  const hasil=await cariTol(asal,tujuan); if(!hasil) return;
+
+  const msg=$("tolDetailMsg");
+  if(msg){msg.textContent="🛣 Mencari tarif tol...";msg.style.display="block";msg.style.color="var(--mut)";}
+
+  const hasil=await cariTol(asal,tujuan);
+  if(!hasil){
+    if(msg){msg.textContent="ℹ️ Rute ini tidak melalui jaringan tol Trans Jawa.";msg.style.color="var(--mut)";}
+    return;
+  }
+
   const gol=parseInt($("golSel")?.value||"1");
   const tarif=gol===1?hasil.totalG1:gol===2?hasil.totalG2:hasil.totalG3;
+  if(tarif<=0) return;
+
   const tolRow=$("tolRow");
   if(tolRow&&tolRow.classList.contains("hidden")) toggleTol();
   if($("tolIn")) $("tolIn").value=tarif;
-  const detail=hasil.detail.map(d=>{
-    const t=gol===1?d.g1:gol===2?d.g2:d.g3;
-    return d.ruas+': '+rp(t);
-  }).join(' + ');
-  const msg=$("tolDetailMsg");
-  if(msg){msg.textContent="🛣 Estimasi tol: "+detail;msg.style.display="block";}
+
+  const isVerified=hasil.sumber&&hasil.sumber.includes("BPJT");
+  const icon=isVerified?"✅":"⚠️";
+  const label=isVerified?"Tarif terverifikasi BPJT":"Estimasi (belum terverifikasi)";
+
+  if(hasil.detail.length===1&&isVerified){
+    // RUTE_LANGSUNG: tampilkan via info
+    if(msg){
+      msg.innerHTML=`${icon} <b>${rp(tarif)}</b> Gol ${gol}<br>
+        <span style="font-size:10px;opacity:.75">${hasil.detail[0].ruas}</span><br>
+        <span style="font-size:10px;color:var(--mut)">${label}</span>`;
+      msg.style.display="block";
+      msg.style.color=isVerified?"var(--green)":"var(--yellow)";
+    }
+  } else {
+    // Ruas-based: tampilkan breakdown
+    const detail=hasil.detail.map(d=>{
+      const t=gol===1?d.g1:gol===2?d.g2:d.g3;
+      return `${d.ruas}: ${rp(t)}`;
+    }).join(" + ");
+    if(msg){
+      msg.innerHTML=`${icon} <b>${rp(tarif)}</b> Gol ${gol}<br>
+        <span style="font-size:10px;opacity:.75">${detail}</span><br>
+        <span style="font-size:10px;color:var(--mut)">${label}</span>`;
+      msg.style.display="block";
+      msg.style.color=isVerified?"var(--green)":"var(--yellow)";
+    }
+  }
   hitung();
 }
 
