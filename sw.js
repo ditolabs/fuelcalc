@@ -1,4 +1,4 @@
-const CACHE = 'bbm-v6';
+const CACHE = 'bbm-v7';
 const ASSETS = [
   '/fuelcalc/',
   '/fuelcalc/index.html',
