@@ -1295,6 +1295,24 @@ function toggleTol(){
   chev.textContent=hidden?"▼":"▲";
   if(hidden){$("tolIn").value=""; hitung();}
 }
+/* ════ DATABASE ALAMAT SPBU ════ */
+const SPBU_DB = {
+  "54.601.88": "JL. SULAWESI NO. 8",
+  "54.602.66": "JL. RAYA DARMO NO. 111", 
+  "54.601.01": "JL. RAYA JEMURSARI NO. 222",
+  "54.601.11": "JL. AHMAD YANI NO. 45"
+};
+
+function autoFillAlamat() {
+  const spbuInput = document.getElementById("inSpbuNo").value.trim();
+  const alamatInput = document.getElementById("inSpbuAlamat");
+  
+  if (SPBU_DB[spbuInput]) {
+    alamatInput.value = SPBU_DB[spbuInput];
+  }
+}
+
+
 /* ════ CETAK NOTA PNG (PERTAMINA STYLE) ════ */
 function downloadNota() {
   // Buka pop-up form pengaturan struk
@@ -1721,9 +1739,7 @@ if("serviceWorker" in navigator){
     
     <div class="sec">
       <span class="lbl">No. SPBU & Alamat</span>
-      <div class="irow" style="margin-bottom:6px"><input type="text" id="inSpbuNo" placeholder="No SPBU (misal: 54.601.88)" value="54.601.88"></div>
-      <div class="irow"><input type="text" id="inSpbuAlamat" placeholder="Alamat SPBU" value="JL. SULAWESI NO. 8"></div>
-    </div>
+  <div class="irow" style="margin-bottom:6px"><input type="text" id="inSpbuNo" placeholder="No SPBU (misal: 54.601.88)" value="54.601.88" oninput="autoFillAlamat()"></div>
     
     <div class="sec">
       <span class="lbl">Detail SPBU</span>
