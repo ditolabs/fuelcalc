@@ -1319,12 +1319,43 @@ function downloadNota() {
   $("notaModal").style.display = "flex";
 }
 
-function eksekusiCetakNota() {
-  $("notaModal").style.display = "none";
-  const btn = $("printBtn");
-  const orig = btn.innerHTML; 
-  btn.innerHTML = "⏳ Sedang memproses..."; 
-  btn.disabled = true;
+  // 5. Render ke Gambar
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+    // Ubah canvas ke Blob agar kompatibel dengan Download Manager Android
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("Gagal memproses gambar.");
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+        return;
+      }
+      
+      // Buat URL sementara dari Blob
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `Struk_SPBU_${noTrans}.png`;
+      
+      // Sisipkan ke body, klik, lalu hapus lagi (wajib untuk beberapa browser HP)
+      document.body.appendChild(a);
+      a.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); // Hapus URL dari memori
+      }, 150);
+      
+      btn.innerHTML = orig; 
+      btn.disabled = false;
+    }, "image/png");
+    
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  });
+
   
   // 1. Ambil Data Kalkulator
   const fn = FUEL[fi]?.nama || "BBM";
