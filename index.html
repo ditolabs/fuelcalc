@@ -1319,15 +1319,59 @@ function downloadNota() {
   $("notaModal").style.display = "flex";
 }
 
-  // 5. Render ke Gambar
-  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
-    // Ubah canvas ke Blob agar kompatibel dengan Download Manager Android
+  // 5. Render ke Gambar (Tambahkan useCORS: true)
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
     canvas.toBlob(blob => {
       if (!blob) {
-        alert("Gagal memproses gambar.");
+        alert("Gagal memproses gambar. Pastikan gambar logo termuat sempurna.");
         btn.innerHTML = orig; 
         btn.disabled = false;
         return;
+      }
+      
+      const fileName = `Struk_SPBU_${noTrans}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // Coba gunakan fitur "Share" native bawaan HP (Sangat stabil untuk PWA Android)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'Struk SPBU',
+          text: 'Struk pembelian BBM'
+        }).then(() => {
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        }).catch(e => {
+          // Abaikan jika user membatalkan share/simpan
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        });
+      } else {
+        // Fallback: Gunakan cara download biasa untuk PC / Browser Lama
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 150);
+        
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+      }
+    }, "image/png");
+    
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  });
+
       }
       
       // Buat URL sementara dari Blob
