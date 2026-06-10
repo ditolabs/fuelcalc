@@ -10,7 +10,8 @@
 GITHUB_USER="ditolabs"
 REPO="fuelcalc"
 BRANCH="main"
-FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json" "harga.json" "scrape_harga.py")
+# ✅ UPDATE: Menambahkan 1001176930.png ke dalam daftar file yang di-deploy
+FILES=("index.html" "manifest.json" "sw.js" "icon.svg" "tol.json" "harga.json" "scrape_harga.py" "1001176930.png")
 WORKFLOW_FILE=".github/workflows/update_harga.yml"
 
 echo ""

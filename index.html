@@ -1111,12 +1111,6 @@ function renderSpeedo(kmh){
   $("speedDigital").textContent=Math.round(kmh);
 }
 
-
-
-
-
-
-
 /* ════ TOL — LAZY LOAD DARI tol.json ════ */
 let CACHED_TOL=null;
 async function loadTol(){
@@ -1325,6 +1319,176 @@ function eksekusiCetakNota() {
   const orig = btn.innerHTML; 
   btn.innerHTML = "⏳ Sedang memproses..."; 
   btn.disabled = true;
+  
+  // 1. Ambil Data Kalkulator
+  const fn = FUEL[fi]?.nama || "BBM";
+  const biayaRaw = parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,"")) || 0;
+  const literRaw = ($("cLiter").textContent||"0").replace(" L","");
+  
+  // 2. Generate Data Random/Waktu
+  const noTrans = Math.floor(1000000 + Math.random() * 9000000); // 7 digit random
+  const now = new Date();
+  const tgl = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  
+  // 3. Masukkan Data Form SPBU & Kalkulator ke HTML Nota
+  $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
+  $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
+  $("nShift").textContent = "1";
+  $("nNoTrans").textContent = noTrans;
+  $("nTanggal").textContent = tgl;
+  
+  $("nPompa").textContent = $("inPompa").value || "2";
+  $("nBBM").textContent = fn;
+  $("nHarga").textContent = rp(harga);
+  $("nLiter").textContent = "(L) " + literRaw;
+  $("nTotalAtas").textContent = rp(biayaRaw);
+  $("nTotalBawah").textContent = rp(biayaRaw);
+  $("nOpr").textContent = $("inOpr").value || "ADMIN";
+
+  // 4. Logika Teks Subsidi (Pertalite/Solar)
+  if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
+     $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
+     $("nSubsidiMsg").style.display = "block";
+  } else {
+     $("nSubsidiMsg").style.display = "none";
+  }
+
+  // 5. Render ke Gambar (CORS + Native Share/Blob)
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("Gagal memproses gambar. Pastikan gambar logo termuat sempurna.");
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+        return;
+      }
+      
+      const fileName = `Struk_SPBU_${noTrans}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // Coba gunakan fitur "Share" native bawaan HP
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'Struk SPBU',
+          text: 'Struk pembelian BBM'
+        }).then(() => {
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        }).catch(e => {
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        });
+      } else {
+        // Fallback untuk PC / Browser Lama
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 150);
+        
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+      }
+    }, "image/png");
+    
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  });
+} 
+// PASTIKAN KURUNG KURAWAL PENUTUP DI ATAS INI IKUT TERSALIN!
+
+
+  // 5. Render ke Gambar (Tambahkan useCORS: true)
+  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("Gagal memproses gambar. Pastikan gambar logo termuat sempurna.");
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+        return;
+      }
+      
+      const fileName = `Struk_SPBU_${noTrans}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // Coba gunakan fitur "Share" native bawaan HP (Sangat stabil untuk PWA Android)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'Struk SPBU',
+          text: 'Struk pembelian BBM'
+        }).then(() => {
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        }).catch(e => {
+          // Abaikan jika user membatalkan share/simpan
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        });
+      } else {
+        // Fallback: Gunakan cara download biasa untuk PC / Browser Lama
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 150);
+        
+        btn.innerHTML = orig; 
+        btn.disabled = false;
+      }
+    }, "image/png");
+    
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  });
+
+      }
+      
+      // Buat URL sementara dari Blob
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `Struk_SPBU_${noTrans}.png`;
+      
+      // Sisipkan ke body, klik, lalu hapus lagi (wajib untuk beberapa browser HP)
+      document.body.appendChild(a);
+      a.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); // Hapus URL dari memori
+      }, 150);
+      
+      btn.innerHTML = orig; 
+      btn.disabled = false;
+    }, "image/png");
+    
+  }).catch(e => {
+    alert("Gagal cetak struk: " + e);
+    btn.innerHTML = orig; 
+    btn.disabled = false;
+  });
+
   
   // 1. Ambil Data Kalkulator
   const fn = FUEL[fi]?.nama || "BBM";
@@ -1737,10 +1901,17 @@ if("serviceWorker" in navigator){
   <div style="background:var(--s1);border-radius:16px;padding:20px;width:100%;max-width:340px;border:1px solid var(--b1)">
     <h3 style="margin-bottom:16px;font-size:16px;display:flex;align-items:center;gap:8px">⚙️ Format Struk Pertamina</h3>
     
-    <div class="sec">
+    <    <div class="sec">
       <span class="lbl">No. SPBU & Alamat</span>
-  <div class="irow" style="margin-bottom:6px"><input type="text" id="inSpbuNo" placeholder="No SPBU (misal: 54.601.88)" value="54.601.88" oninput="autoFillAlamat()"></div>
-    
+      <div class="irow" style="margin-bottom:6px">
+        <input type="text" id="inSpbuNo" placeholder="No SPBU (misal: 54.601.88)" value="54.601.88" oninput="autoFillAlamat()">
+      </div>
+      <div class="irow" style="margin-bottom:6px">
+        <input type="text" id="inSpbuAlamat" placeholder="Alamat SPBU" value="JL. SULAWESI NO. 8">
+      </div>
+    </div> <div class="sec">
+      <span class="lbl">Detail SPBU</span>
+
     <div class="sec">
       <span class="lbl">Detail SPBU</span>
       <div class="c2">
