@@ -1,0 +1,13 @@
+{
+  "updated": "2026-06-10",
+  "source": "scraped",
+  "note": "Harga berlaku mulai 10 Juni 2026. Harga untuk wilayah DKI Jakarta & Jabodetabek (PBBKB 5%). Harga di luar Jawa dapat berbeda.",
+  "bbm": [
+    {"nama": "Pertalite",      "harga": 10000, "warna": "#22c55e", "ron": "RON 90",  "tipe": "subsidi"},
+    {"nama": "Pertamax",       "harga": 16250, "warna": "#f97316", "ron": "RON 92",  "tipe": "nonsubsidi"},
+    {"nama": "Pertamax Turbo", "harga": 20750, "warna": "#ef4444", "ron": "RON 98",  "tipe": "nonsubsidi"},
+    {"nama": "Dexlite",        "harga": 23000, "warna": "#3b82f6", "ron": "CN 51",   "tipe": "nonsubsidi"},
+    {"nama": "Pertamina Dex",  "harga": 24800, "warna": "#8b5cf6", "ron": "CN 53",   "tipe": "nonsubsidi"},
+    {"nama": "Solar",          "harga":  6800, "warna": "#eab308", "ron": "CN 48",   "tipe": "subsidi"}
+  ]
+}
