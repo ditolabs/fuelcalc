@@ -422,7 +422,7 @@ input:focus{border-color:var(--accent)}
         <span>📤</span> Bagikan Hasil
       </button>
       <button id="printBtn" class="hidden" onclick="downloadNota()" style="width:100%;padding:11px;border-radius:11px;border:1px solid var(--b2);background:var(--s2);color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span>🖨️</span> Cetak Nota PNG
+        <span>🖨️</span> Cetak / Bagikan Nota
       </button>
 
       <div class="summary" id="summaryEl"></div>
@@ -1251,14 +1251,18 @@ function downloadNota() {
   $("notaModal").style.display = "flex";
 }
 
-function eksekusiCetakNota() {
+function eksekusiCetakNota(action) {
   $("notaModal").style.display = "none";
   const btn = $("printBtn");
   const orig = btn.innerHTML;
   btn.innerHTML = "⏳ Sedang memproses...";
   btn.disabled = true;
 
-  // Ambil data kalkulator
+  const finishAction = () => {
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  };
+
   const fn = FUEL[fi]?.nama || "BBM";
   const biayaRaw = parseFloat(($("cBiaya").textContent || "0").replace(/[^0-9]/g, "")) || 0;
   const literRaw = ($("cLiter").textContent || "0").replace(" L", "");
@@ -1288,12 +1292,10 @@ function eksekusiCetakNota() {
     $("nSubsidiMsg").style.display = "none";
   }
 
-  // Jalankan html2canvas dengan timeout
   let timeoutId = setTimeout(() => {
     alert("Proses cetak terlalu lama. Coba ulangi.");
-    btn.innerHTML = orig;
-    btn.disabled = false;
-  }, 15000); // 15 detik timeout
+    finishAction();
+  }, 15000);
 
   html2canvas($("notaCetak"), {
     scale: 2,
@@ -1303,85 +1305,58 @@ function eksekusiCetakNota() {
     logging: false
   }).then(canvas => {
     clearTimeout(timeoutId);
-    // Proses canvas → blob atau data URL
-    canvas.toBlob(blob => {
-      if (!blob) {
-        // Fallback ke data URL
-        try {
-          const dataUrl = canvas.toDataURL("image/png");
-          if (dataUrl && dataUrl.length > 1000) {
-            const link = document.createElement('a');
-            link.download = `Struk_SPBU_${noTrans}.png`;
-            link.href = dataUrl;
-            link.click();
-            btn.innerHTML = orig;
-            btn.disabled = false;
+    const fileNameBase = `Struk_SPBU_${noTrans}`;
+
+    if (action === 'pdf') {
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(fileNameBase + '.pdf');
+      finishAction();
+    } else if (action === 'jpg') {
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const link = document.createElement('a');
+      link.download = fileNameBase + '.jpg';
+      link.href = imgData;
+      link.click();
+      finishAction();
+    } else if (action === 'share') {
+      canvas.toBlob(blob => {
+        if (!blob) {
+            alert("Gagal membuat gambar.");
+            finishAction();
             return;
-          }
-        } catch (e) { /* fallthrough */ }
-        alert("Gagal membuat gambar. Coba screenshot manual.");
-        btn.innerHTML = orig;
-        btn.disabled = false;
-        return;
-      }
-
-      const fileName = `Struk_SPBU_${noTrans}.png`;
-      const file = new File([blob], fileName, { type: "image/png" });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: 'Struk SPBU',
-          text: 'Struk pembelian BBM'
-        }).finally(() => {
-          btn.innerHTML = orig;
-          btn.disabled = false;
-        });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 150);
-        btn.innerHTML = orig;
-        btn.disabled = false;
-      }
-    }, "image/png");
+        }
+        const file = new File([blob], fileNameBase + '.jpg', { type: "image/jpeg" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'Struk SPBU',
+            text: 'Struk pembelian BBM'
+          }).catch((e) => {
+            console.log("Share dibatalkan:", e);
+          }).finally(() => { finishAction(); });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = fileNameBase + '.jpg';
+          link.href = url;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 150);
+          finishAction();
+        }
+      }, "image/jpeg", 1.0);
+    }
   }).catch(err => {
     clearTimeout(timeoutId);
-    console.error("html2canvas error:", err);
-    // Coba dengan skala lebih rendah
-    html2canvas($("notaCetak"), {
-      scale: 1.5,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      allowTaint: true,
-      logging: false
-    }).then(canvas2 => {
-      try {
-        const url = canvas2.toDataURL("image/png");
-        const a = document.createElement('a');
-        a.download = `Struk_SPBU_${noTrans}.png`;
-        a.href = url;
-        a.click();
-        btn.innerHTML = orig;
-        btn.disabled = false;
-      } catch (e2) {
-        alert("Gagal cetak struk. Silakan screenshot manual.");
-        btn.innerHTML = orig;
-        btn.disabled = false;
-      }
-    }).catch(e2 => {
-      alert("Gagal cetak struk: " + e2.message);
-      btn.innerHTML = orig;
-      btn.disabled = false;
-    });
+    console.error(err);
+    alert("Gagal cetak struk: " + err.message);
+    finishAction();
   });
 }
 
@@ -1717,6 +1692,7 @@ if("serviceWorker" in navigator){
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <div id="notaModal" style="display:none;position:fixed;inset:0;z-index:500;background:#0008;align-items:center;justify-content:center;padding:16px">
   <div style="background:var(--s1);border-radius:16px;padding:20px;width:100%;max-width:340px;border:1px solid var(--b1)">
@@ -1744,9 +1720,11 @@ if("serviceWorker" in navigator){
       💡 Data BBM, Liter, dan Total Harga akan ditarik otomatis dari hasil kalkulator Anda.
     </div>
 
-    <div style="display:flex;gap:8px">
-      <button onclick="document.getElementById('notaModal').style.display='none'" style="flex:1;padding:11px;border-radius:9px;background:transparent;color:var(--txt);border:1px solid var(--b2);cursor:pointer;font-weight:600">Batal</button>
-      <button onclick="eksekusiCetakNota()" style="flex:1;padding:11px;border-radius:9px;background:#3b82f6;color:#fff;border:none;cursor:pointer;font-weight:600">🖨️ Cetak</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button onclick="document.getElementById('notaModal').style.display='none'" style="flex:1;min-width:100%;padding:11px;border-radius:9px;background:transparent;color:var(--txt);border:1px solid var(--b2);cursor:pointer;font-weight:600;margin-bottom:4px">Batal</button>
+      <button onclick="eksekusiCetakNota('share')" style="flex:1;padding:11px;border-radius:9px;background:#10b981;color:#fff;border:none;cursor:pointer;font-weight:600">📤 Share</button>
+      <button onclick="eksekusiCetakNota('jpg')" style="flex:1;padding:11px;border-radius:9px;background:#f59e0b;color:#fff;border:none;cursor:pointer;font-weight:600">🖼️ JPG</button>
+      <button onclick="eksekusiCetakNota('pdf')" style="flex:1;padding:11px;border-radius:9px;background:#ef4444;color:#fff;border:none;cursor:pointer;font-weight:600">📄 PDF</button>
     </div>
   </div>
 </div>
@@ -1754,10 +1732,9 @@ if("serviceWorker" in navigator){
 <div class="nota-wrap" id="notaWrap">
   <div class="nota-kertas" id="notaCetak">
     
-    <!-- LOGO PERTAMINA — menggunakan file 1001176931.png -->
-    <div class="n-logo">
-      <img id="logoPertamina" src="1001176931.png" alt="Logo Pertamina" crossorigin="anonymous">
-      <span class="n-logo-txt">PERTAMINA</span>
+    <!-- LOGO PERTAMINA — menggunakan file 1001176930.png -->
+    <div class="n-logo" style="margin-bottom: 12px; margin-top: 4px;">
+      <img id="logoPertamina" src="1001176930.png" alt="Logo Pertamina" crossorigin="anonymous" style="max-height: 24px; object-fit: contain;">
     </div>
 
     <div class="n-spbu">
