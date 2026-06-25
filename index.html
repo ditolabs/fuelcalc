@@ -175,11 +175,10 @@ input:focus{border-color:var(--accent)}
 /* SPEEDOMETER & TRIP */
 .speedo-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 4px;margin-bottom:12px;}
 #speedoSvg{width:min(270px,80vw);height:auto}
-#speedoSvg line#spdNeedle{transition:none} /* animasi via rAF, bukan CSS */
+#speedoSvg line#spdNeedle{transition:none}
 .speed-digital{font-family:'DM Mono',monospace;font-size:48px;font-weight:500;line-height:1;margin-top:-2px;transition:color .4s}
 .speed-unit{font-size:12px;color:var(--mut);margin-top:2px;letter-spacing:1px}
 
-/* Update banner */
 .update-banner{
   display:none;position:fixed;top:0;left:0;right:0;z-index:300;
   background:var(--accent);color:#000;
@@ -252,8 +251,8 @@ input:focus{border-color:var(--accent)}
   text-transform:uppercase;
 }
 .n-logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
-.n-logo-mark{width:40px;height:28px}
-.n-logo-txt{font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Arial Black',sans-serif}
+.n-logo-mark{width:40px;height:28px;flex-shrink:0}
+.n-logo-txt{font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Arial Black',sans-serif;color:#f97316}
 .n-spbu{text-align:center;font-size:14px;line-height:1.3;margin-bottom:10px}
 .n-hr{border:none;border-top:1px dashed #000;margin:6px 0}
 .n-row{display:flex;font-size:12px;margin-bottom:1px}
@@ -606,34 +605,24 @@ function buildBudgetPills(){
 }
 
 function clearAll(){
-  // Reset input
   $("budgetIn").value="";
   $("tangkiIn").value="";
   $("asalIn").value="";
   $("tujuanIn").value="";
-  // Reset state
   budget=0; mapsKm=null; mapsLabel="";
-  // Reset mode ke budget
   setInputMode("budget");
-  // Reset koreksi ke default
   $("koreksiJalan").value="0";
   $("koreksiBeban").value="0";
-  // Reset fuel & kendaraan ke pilihan pertama
   fi=0; cfuel=false; harga=FUEL[0].h;
   ki=0; cken=false; konsumsi=KEN[0].k;
   $("fuelCustomRow").classList.add("hidden");
   $("kCustomRow").classList.add("hidden");
-  // Reset maps status
   $("mapsSt").className="maps-st";
-  // Rebuild UI
   initDropdowns(); buildBudgetPills(); buildTangkiPills();
-  // Reset result
   $("emptyState").classList.remove("hidden");
   $("resultEl").classList.add("hidden");
   $("sisaPanel").className="hidden";
-  // Scroll ke atas
   $("pg-kalkulator").scrollTop=0;
-  // Flash subtle confirmation
   const icon=$("hIcon");
   icon.textContent="✓"; icon.style.background="#22c55e22";
   setTimeout(()=>{icon.textContent="⛽"; icon.style.background=FUEL[0].w+"22"},1000);
@@ -822,7 +811,6 @@ const KOTA_DB={
 function geoFromDB(q){
   const k=q.toLowerCase().trim();
   if(KOTA_DB[k]) return KOTA_DB[k];
-  // Partial match — cari yang mengandung kata kunci
   for(const[key,val] of Object.entries(KOTA_DB)){
     if(k.includes(key)||key.includes(k)) return val;
   }
@@ -839,14 +827,11 @@ function isCoord(s){return /^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$/.test(s.trim())}
 async function geo(place){
   const q=place.trim();
   if(isCoord(q)){ const [la,lo]=q.split(",").map(Number); return {la,lo}; }
-  // 1. Database lokal
   const local=geoFromDB(q); if(local) return local;
-  // 2. Photon (Komoot)
   try{
     const d=await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q+" Indonesia")}&limit=1`);
     if(d.features&&d.features.length){const[lo,la]=d.features[0].geometry.coordinates;return{la,lo};}
   }catch(e){}
-  // 3. Nominatim
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+", Indonesia")}&format=json&limit=1&countrycodes=id`;
     const d=await fetchJson("https://api.allorigins.win/raw?url="+encodeURIComponent(url));
@@ -856,12 +841,10 @@ async function geo(place){
 }
 
 async function osrm({la:la1,lo:lo1},{la:la2,lo:lo2}){
-  // Coba OSRM routing
   try{
     const d=await fetchJson(`https://router.project-osrm.org/route/v1/driving/${lo1},${la1};${lo2},${la2}?overview=false`);
     if(d.code==="Ok"&&d.routes[0]) return d.routes[0].distance/1000;
   }catch(e){}
-  // Fallback: jarak lurus Haversine × 1.3
   return haversine(la1,lo1,la2,lo2)*1.3||null;
 }
 
@@ -899,13 +882,11 @@ function showResult(liter, bisa, biaya, perKm, fc){
   $("mgJv").innerHTML=`<span style="color:var(--blue)">${bisa.toFixed(0)}</span><span style="color:var(--mut);font-size:9px"> km</span>`;
   $("mgPv").innerHTML=`<span style="color:var(--purple)">${Math.round(perKm)}</span><span style="color:var(--mut);font-size:9px"> Rp</span>`;
 
-  // Biaya tol + total
   const tol=parseFloat($("tolIn")?.value)||0;
   const totalBiaya=biaya+tol;
   if(mapsKm||tol>0){
     $("etaPanel").classList.remove("hidden");
     $("totalBiayaVal").textContent=rp(Math.round(totalBiaya));
-    // ETA: asumsi rata-rata 60 km/h jika ada jarak rute
     if(mapsKm){
       const jamEst=mapsKm/60;
       const jam=Math.floor(jamEst);
@@ -914,7 +895,6 @@ function showResult(liter, bisa, biaya, perKm, fc){
     } else {$("etaVal").textContent="–";}
   } else $("etaPanel").classList.add("hidden");
 
-  // Sisa/kurang panel
   const sp=$("sisaPanel");
   if(mapsKm&&biaya>0){
     const sel=bisa-mapsKm;
@@ -924,11 +904,9 @@ function showResult(liter, bisa, biaya, perKm, fc){
       :`⚠️ Kurang untuk ${mapsKm.toFixed(1)} km. Perlu tambah ≈ ${rp(Math.round(-sel*perKm))}`;
   } else sp.className="";
 
-  // Perbandingan BBM (hanya jika ada jarak rute)
   if(mapsKm) renderBBMComp(mapsKm, perKm);
   else $("bbmCompPanel").classList.add("hidden");
 
-  // Share button
   $("shareBtn").classList.remove("hidden");
   $("printBtn").classList.remove("hidden");
 }
@@ -948,7 +926,6 @@ function hitung(){
     const biayaFull=tangki*harga;
     $("fulltankBiaya").textContent=rp(Math.round(biayaFull));
     showResult(tangki, tangki*realKonsumsi, biayaFull, biayaFull/(tangki*realKonsumsi), fc);
-    // Fetch cuaca tujuan jika ada
     if(mapsKm){
       const tjCoord=geoFromDB($("tujuanIn").value.trim());
       if(tjCoord) fetchCuaca(tjCoord.la,tjCoord.lo);
@@ -962,7 +939,6 @@ function hitung(){
   else if(mapsKm>0){bisa=mapsKm;liter=bisa/realKonsumsi;biaya=liter*harga;perKm=biaya/bisa;}
   showResult(liter, bisa, biaya, perKm, fc);
 
-  // Fetch cuaca tujuan
   if(mapsKm){
     const tjCoord=geoFromDB($("tujuanIn").value.trim());
     if(tjCoord) fetchCuaca(tjCoord.la,tjCoord.lo);
@@ -1031,10 +1007,8 @@ function stopTrack(){
   $("gpsDot").classList.remove("active");
   $("gpsStatusTxt").textContent="Selesai — "+fmtT(tripSec);
   $("saveBtn").classList.remove("hidden");
-  // Simpan ke odometer total
   addOdometer(tripDist);
   $("tOdo").textContent=getOdometer().toFixed(2);
-  // Stop smooth needle
   targetKmh=0;
   if(!spdRafId) spdRafId=requestAnimationFrame(animateSpeedo);
 }
@@ -1054,16 +1028,11 @@ function onPos(pos){
   }
   if(kmh>0){tripSpdSum+=kmh;tripSpdN++}
 
-  // GPS trace — simpan titik & redraw tiap 3 titik baru
   gpsPoints.push({la,lo});
   if(gpsPoints.length%3===0) drawTrace();
 
   lastLa=la;lastLo=lo;lastT=Date.now();
-
-  // Speed alert (vibrate)
   checkSpeedAlert(kmh);
-
-  // Smooth speedo
   targetKmh=kmh;
   if(!spdRafId) spdRafId=requestAnimationFrame(animateSpeedo);
 
@@ -1085,7 +1054,6 @@ function onPos(pos){
 }
 
 function animateSpeedo(){
-  // Lerp: naik cepat (0.15), turun lambat (0.08) — mirip speedometer fisik
   const rate=targetKmh>currentKmh?0.15:0.08;
   currentKmh+=(targetKmh-currentKmh)*rate;
   if(Math.abs(currentKmh-targetKmh)<0.3) currentKmh=targetKmh;
@@ -1128,14 +1096,12 @@ async function cariTol(asalKota,tujuanKota){
   const data=await loadTol(); if(!data) return null;
   const {TOL_DB,KOTA_RUAS,RUAS_URUT,RUAS_COORD,RUTE_LANGSUNG}=data;
 
-  /* ── Normalize nama kota ── */
   function normKota(s){
     return s.toLowerCase().trim()
       .replace(/\bkab\.?\s*/,'').replace(/\bkota\s*/,'')
       .replace(/kabupaten\s*/,'').split(',')[0].trim();
   }
 
-  /* ── Resolve nama / koordinat → {la,lo,nama} ── */
   function resolveCoord(str){
     const s=str.trim();
     if(isCoord(s)){const[la,lo]=s.split(",").map(Number);return{la,lo,nama:s};}
@@ -1147,17 +1113,13 @@ async function cariTol(asalKota,tujuanKota){
     return null;
   }
 
-  /* ── STEP 1: Cari di RUTE_LANGSUNG terlebih dahulu ──
-     Ini yang paling akurat karena berdasarkan data BPJT aktual */
   if(RUTE_LANGSUNG){
     const a=normKota(asalKota), t=normKota(tujuanKota);
     for(const rute of RUTE_LANGSUNG){
       const kotaA=rute.kota.map(k=>k.toLowerCase());
       const kotaT=rute.tujuan.map(k=>k.toLowerCase());
-      // Cek arah A→T
       const hitA=kotaA.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
       const hitT=kotaT.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
-      // Cek arah T→A (rute bersifat bidirectional)
       const hitA2=kotaT.some(k=>a.includes(k)||k.includes(a.split(' ')[0]));
       const hitT2=kotaA.some(k=>t.includes(k)||k.includes(t.split(' ')[0]));
       if((hitA&&hitT)||(hitA2&&hitT2)){
@@ -1170,7 +1132,6 @@ async function cariTol(asalKota,tujuanKota){
     }
   }
 
-  /* ── STEP 2: Fallback ke algoritma berbasis koordinat ── */
   const cA=resolveCoord(asalKota), cT=resolveCoord(tujuanKota);
   if(!cA&&!cT) return null;
 
@@ -1199,24 +1160,19 @@ async function cariTol(asalKota,tujuanKota){
   let startIdx=Math.min(...allIdx), endIdx=Math.max(...allIdx);
   let ruasDilalui=RUAS_URUT.slice(startIdx,endIdx+1);
 
-  // Pilih Surabaya-Gempol ATAU Surabaya-Mojokerto berdasarkan arah longitude
   if(ruasDilalui.includes("Surabaya-Gempol")&&ruasDilalui.includes("Surabaya-Mojokerto")){
     const loA=cA?.lo??112.77, loT=cT?.lo??112.77;
     if(loT>loA) ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Mojokerto");
     else         ruasDilalui=ruasDilalui.filter(r=>r!=="Surabaya-Gempol");
   }
-  // Gempol-Pasuruan vs Gempol-Pandaan: pilih berdasarkan tujuan
   if(ruasDilalui.includes("Gempol-Pasuruan")&&ruasDilalui.includes("Gempol-Pandaan")){
     const laT=cT?.la??-7.6;
-    // Malang/Pandaan arahnya lebih selatan (lat lebih besar negatif) dari Pasuruan
     if(laT<-7.6) ruasDilalui=ruasDilalui.filter(r=>r!=="Gempol-Pasuruan");
     else         ruasDilalui=ruasDilalui.filter(r=>r!=="Gempol-Pandaan"&&r!=="Pandaan-Malang");
   }
-  // Hapus duplikat arah Batang-Semarang
   if(ruasDilalui.includes("Batang-Semarang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Semarang-Batang");
   if(ruasDilalui.includes("Semarang-Batang")) ruasDilalui=ruasDilalui.filter(r=>r!=="Batang-Semarang");
 
-  // Hitung tarif: gunakan tarif maksimal per ruas (estimasi perjalanan penuh)
   const perRuas={};
   for(const r of TOL_DB){
     if(ruasDilalui.includes(r.r)&&(!perRuas[r.r]||r.g1>perRuas[r.r].g1)) perRuas[r.r]=r;
@@ -1258,7 +1214,6 @@ async function autoFillTol(){
   const label=isVerified?"Tarif terverifikasi BPJT":"Estimasi (belum terverifikasi)";
 
   if(hasil.detail.length===1&&isVerified){
-    // RUTE_LANGSUNG: tampilkan via info
     if(msg){
       msg.innerHTML=`${icon} <b>${rp(tarif)}</b> Gol ${gol}<br>
         <span style="font-size:10px;opacity:.75">${hasil.detail[0].ruas}</span><br>
@@ -1267,7 +1222,6 @@ async function autoFillTol(){
       msg.style.color=isVerified?"var(--green)":"var(--yellow)";
     }
   } else {
-    // Ruas-based: tampilkan breakdown
     const detail=hasil.detail.map(d=>{
       const t=gol===1?d.g1:gol===2?d.g2:d.g3;
       return `${d.ruas}: ${rp(t)}`;
@@ -1308,9 +1262,8 @@ function autoFillAlamat() {
 }
 
 
-/* ════ CETAK NOTA PNG (PERTAMINA STYLE) ════ */
+/* ════ CETAK NOTA PNG — FIX: gunakan SVG inline untuk logo ════ */
 function downloadNota() {
-  // Buka pop-up form pengaturan struk
   $("notaModal").style.display = "flex";
 }
 
@@ -1321,85 +1274,136 @@ function eksekusiCetakNota() {
   btn.innerHTML = "⏳ Sedang memproses..."; 
   btn.disabled = true;
   
-  // 1. Ambil Data Kalkulator
-  const fn = FUEL[fi]?.nama || "BBM";
-  const biayaRaw = parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,"")) || 0;
-  const literRaw = ($("cLiter").textContent||"0").replace(" L","");
-  
-  // 2. Generate Data Random/Waktu
-  const noTrans = Math.floor(1000000 + Math.random() * 9000000); 
-  const now = new Date();
-  const tgl = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-  
-  // 3. Masukkan Data Form SPBU & Kalkulator ke HTML Nota
-  $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
-  $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
-  $("nShift").textContent = "1";
-  $("nNoTrans").textContent = noTrans;
-  $("nTanggal").textContent = tgl;
-  
-  $("nPompa").textContent = $("inPompa").value || "2";
-  $("nBBM").textContent = fn;
-  $("nHarga").textContent = rp(harga);
-  $("nLiter").textContent = "(L) " + literRaw;
-  $("nTotalAtas").textContent = rp(biayaRaw);
-  $("nTotalBawah").textContent = rp(biayaRaw);
-  $("nOpr").textContent = $("inOpr").value || "ADMIN";
+  try {
+    const fn = FUEL[fi]?.nama || "BBM";
+    const biayaRaw = parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,"")) || 0;
+    const literRaw = ($("cLiter").textContent||"0").replace(" L","");
+    
+    const noTrans = Math.floor(1000000 + Math.random() * 9000000); 
+    const now = new Date();
+    const tgl = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+    
+    $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
+    $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
+    $("nShift").textContent = "1";
+    $("nNoTrans").textContent = noTrans;
+    $("nTanggal").textContent = tgl;
+    
+    $("nPompa").textContent = $("inPompa").value || "2";
+    $("nBBM").textContent = fn;
+    $("nHarga").textContent = rp(harga);
+    $("nLiter").textContent = "(L) " + literRaw;
+    $("nTotalAtas").textContent = rp(biayaRaw);
+    $("nTotalBawah").textContent = rp(biayaRaw);
+    $("nOpr").textContent = $("inOpr").value || "ADMIN";
 
-  // 4. Logika Teks Subsidi
-  if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
-     $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
-     $("nSubsidiMsg").style.display = "block";
-  } else {
-     $("nSubsidiMsg").style.display = "none";
-  }
+    if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
+       $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
+       $("nSubsidiMsg").style.display = "block";
+    } else {
+       $("nSubsidiMsg").style.display = "none";
+    }
 
-  // 5. Render ke Gambar
-  html2canvas($("notaCetak"), { scale: 3, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
-    canvas.toBlob(blob => {
-      if (!blob) {
-        alert("Gagal memproses gambar.");
-        btn.innerHTML = orig; 
-        btn.disabled = false;
-        return;
+    // Gunakan scale 2 untuk performa lebih baik, tambahkan allowTaint: true
+    html2canvas($("notaCetak"), { 
+      scale: 2, 
+      backgroundColor: "#ffffff", 
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      onclone: function(clonedDoc) {
+        // Pastikan semua elemen ter-render dengan baik
+      }
+    }).then(canvas => {
+      // Periksa apakah canvas kosong
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas kosong");
       }
       
-      const fileName = `Struk_SPBU_${noTrans}.png`;
-      const file = new File([blob], fileName, { type: "image/png" });
+      canvas.toBlob(blob => {
+        if (!blob) {
+          // Coba lagi dengan format berbeda
+          try {
+            const dataUrl = canvas.toDataURL("image/png");
+            if (dataUrl && dataUrl.length > 1000) {
+              // Sukses via data URL fallback
+              const link = document.createElement('a');
+              link.download = `Struk_SPBU_${noTrans}.png`;
+              link.href = dataUrl;
+              link.click();
+              btn.innerHTML = orig; 
+              btn.disabled = false;
+              return;
+            }
+          } catch(e2) {}
+          throw new Error("Gagal generate blob");
+        }
+        
+        const fileName = `Struk_SPBU_${noTrans}.png`;
+        const file = new File([blob], fileName, { type: "image/png" });
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: 'Struk SPBU',
-          text: 'Struk pembelian BBM'
-        }).finally(() => {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'Struk SPBU',
+            text: 'Struk pembelian BBM'
+          }).finally(() => {
+            btn.innerHTML = orig; 
+            btn.disabled = false;
+          });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 150);
+          
           btn.innerHTML = orig; 
           btn.disabled = false;
-        });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 150);
-        
+        }
+      }, "image/png");
+      
+    }).catch(e => {
+      console.error("html2canvas error:", e);
+      // Fallback: coba dengan skala lebih rendah
+      html2canvas($("notaCetak"), { 
+        scale: 1.5, 
+        backgroundColor: "#ffffff", 
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      }).then(canvas2 => {
+        try {
+          const url = canvas2.toDataURL("image/png");
+          const a = document.createElement('a');
+          a.download = `Struk_SPBU_${noTrans}.png`;
+          a.href = url;
+          a.click();
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        } catch(e2) {
+          alert("Gagal cetak struk. Silakan coba screenshot manual.");
+          btn.innerHTML = orig; 
+          btn.disabled = false;
+        }
+      }).catch(e2 => {
+        alert("Gagal cetak struk: " + e.message);
         btn.innerHTML = orig; 
         btn.disabled = false;
-      }
-    }, "image/png");
-    
-  }).catch(e => {
-    alert("Gagal cetak struk: " + e);
-    btn.innerHTML = orig; 
+      });
+    });
+  } catch(e) {
+    alert("Terjadi kesalahan: " + e.message);
+    btn.innerHTML = "🖨️ Cetak Nota PNG"; 
     btn.disabled = false;
-  });
+  }
 }
 
 /* ════ SHARE HASIL ════ */
@@ -1546,7 +1550,6 @@ function drawTrace(){
   const scX=lo=>(lo-minLo)/(maxLo-minLo||1)*(W-pad*2)+pad;
   const scY=la=>(1-(la-minLa)/(maxLa-minLa||1))*(H-pad*2)+pad;
 
-  // Gradient line
   ctx.lineWidth=2.5; ctx.lineCap="round"; ctx.lineJoin="round";
   for(let i=1;i<gpsPoints.length;i++){
     const t=i/gpsPoints.length;
@@ -1556,10 +1559,8 @@ function drawTrace(){
     ctx.lineTo(scX(gpsPoints[i].lo),scY(gpsPoints[i].la));
     ctx.stroke();
   }
-  // Start dot
   ctx.fillStyle="#22c55e";
   ctx.beginPath(); ctx.arc(scX(gpsPoints[0].lo),scY(gpsPoints[0].la),5,0,Math.PI*2); ctx.fill();
-  // End dot
   const last=gpsPoints[gpsPoints.length-1];
   ctx.fillStyle="#ef4444";
   ctx.beginPath(); ctx.arc(scX(last.lo),scY(last.la),5,0,Math.PI*2); ctx.fill();
@@ -1612,7 +1613,6 @@ let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
   deferredPrompt = e;
-  // Munculkan banner setelah 3 detik
   setTimeout(() => {
     const b = $("installBanner");
     if(b) b.style.display = "flex";
@@ -1637,18 +1637,11 @@ function doInstall() {
 /* ════ SHARE TARGET HANDLER ════ */
 function handleShareTarget(){
   const params=new URLSearchParams(window.location.search);
-  // Google Maps kirim link di param 'text' atau 'url'
   const raw=params.get('text')||params.get('url')||params.get('title')||"";
   if(!raw) return;
-
-  // Bersihkan URL dari query string supaya tidak diproses ulang saat refresh
   window.history.replaceState({},"",window.location.pathname);
-
-  // Cari URL di dalam teks (kadang teks berisi gabungan nama + link)
   const urlMatch=raw.match(/https?:\/\/[^\s]+/);
   const url=urlMatch?urlMatch[0]:"";
-
-  // Coba parse URL panjang Google Maps
   if(url.includes("google.com/maps/dir/")){
     const m=url.match(/\/maps\/dir\/([^@]+?)(?:\/@|$)/);
     if(m){
@@ -1665,17 +1658,12 @@ function handleShareTarget(){
       }
     }
   }
-
-  // Link pendek atau URL lain — taruh di status info, arahkan user isi manual
   if(url.includes("goo.gl")||url.includes("maps.app")){
     goPage("kalkulator");
     setSt("err","⚠️ Link pendek Google Maps diterima tapi tidak bisa diproses otomatis. Silakan isi kolom Asal & Tujuan di bawah.");
     $("pg-kalkulator").scrollTop=300;
     return;
   }
-
-  // Coba ekstrak nama tempat dari teks share biasa
-  // Contoh: "Cek rute ke Taman Nasional Baluran https://..."
   const namaMatch=raw.replace(url,"").replace(/https?:\/\/[^\s]*/g,"").trim();
   if(namaMatch.length>3){
     $("tujuanIn").value=namaMatch.split("\n")[0].trim();
@@ -1690,30 +1678,25 @@ isDark=(localStorage.getItem("bbm-theme")||"dark")==="dark";
 document.documentElement.setAttribute("data-theme",isDark?"dark":"light");
 if(!isDark) $("themeIcon").textContent="☀️";
 
-/* ── Load harga dari harga.json (auto-update via GitHub Actions) ── */
+/* ── Load harga dari harga.json ── */
 async function loadHargaJSON(){
   try{
-    const r=await fetch("harga.json?t="+Date.now()); // cache-bust
+    const r=await fetch("harga.json?t="+Date.now());
     if(!r.ok) throw new Error("not found");
     const d=await r.json();
     if(d.bbm&&d.bbm.length>=3){
-      // Update FUEL array dari JSON
       FUEL=d.bbm.map(b=>({nama:b.nama,h:b.harga,w:b.warna}));
-      // Simpan ke localStorage sebagai cache
       localStorage.setItem("bbm-harga",JSON.stringify(FUEL));
       localStorage.setItem("bbm-update",d.updated||"");
-      // Update label
       const lbl=$("lastUpdate");
       if(lbl&&d.updated){
         const tgl=new Date(d.updated).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
         lbl.textContent=tgl+(d.source==="scraped"?" ✓":"");
       }
-      // Rebuild UI dengan harga baru
       if(!cfuel){ harga=FUEL[fi]?.h||FUEL[0].h; }
       initDropdowns(); buildBudgetPills(); hitung();
     }
   }catch(e){
-    // Gagal fetch — pakai localStorage cache atau hardcode
     const savedHarga=localStorage.getItem("bbm-harga");
     const savedUpdate=localStorage.getItem("bbm-update");
     if(savedHarga){try{FUEL=JSON.parse(savedHarga)}catch(e2){}}
@@ -1723,7 +1706,6 @@ async function loadHargaJSON(){
 }
 
 buildSpeedometer(); initDropdowns(); buildBudgetPills(); buildTangkiPills(); hitung();
-// Load harga terbaru setelah UI siap
 loadHargaJSON();
 
 /* ════ PWA UPDATE ════ */
@@ -1738,21 +1720,17 @@ function doUpdate(){
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js").then(reg=>{
     swRegistration=reg;
-    // Cek update saat app dibuka
     reg.update();
-    // Deteksi SW baru tersedia
     reg.addEventListener("updatefound",()=>{
       const newSW=reg.installing;
       newSW.addEventListener("statechange",()=>{
         if(newSW.state==="installed"&&navigator.serviceWorker.controller){
-          // Versi baru siap — tampilkan banner update
           const b=$("updateBanner");
           if(b) b.style.display="flex";
         }
       });
     });
   }).catch(()=>{});
-  // Reload otomatis setelah SW baru aktif
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
     window.location.reload();
   });
@@ -1773,8 +1751,7 @@ if("serviceWorker" in navigator){
       <div class="irow" style="margin-bottom:6px">
         <input type="text" id="inSpbuAlamat" placeholder="Alamat SPBU" value="JL. SULAWESI NO. 8">
       </div>
-    </div> <div class="sec">
-      <span class="lbl">Detail SPBU</span>
+    </div>
 
     <div class="sec">
       <span class="lbl">Detail SPBU</span>
@@ -1798,10 +1775,15 @@ if("serviceWorker" in navigator){
 <div class="nota-wrap" id="notaWrap">
   <div class="nota-kertas" id="notaCetak">
     
- <div class="n-logo">
-  <img src="1001176930.png" alt="Logo Pertamina" style="max-height: 28px; width: auto; object-fit: contain;">
-</div>
-
+    <!-- LOGO PERTAMINA — INLINE SVG, TIDAK PERLU FILE EKSTERNAL -->
+    <div class="n-logo">
+      <svg class="n-logo-mark" viewBox="0 0 40 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="28" rx="4" fill="#f97316"/>
+        <path d="M10 6h20v3H10V6zm0 6h14v3H10v-3zm0 7h18v3H10v-3z" fill="white" opacity="0.15"/>
+        <text x="20" y="19" text-anchor="middle" fill="white" font-size="14" font-weight="900" font-family="'Arial Black',sans-serif">P</text>
+      </svg>
+      <span class="n-logo-txt">PERTAMINA</span>
+    </div>
 
     <div class="n-spbu">
       <div id="nSpbu" style="font-size:18px;margin-bottom:2px">54.601.88</div>
