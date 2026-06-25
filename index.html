@@ -325,7 +325,10 @@ input:focus{border-color:var(--accent)}
         </div>
         <input type="text" id="tujuanIn" placeholder="Tujuan (contoh: Banyuwangi)">
       </div>
-      <button class="maps-btn" id="mapsBtn" onclick="fetchDist()">Cari Jarak & Hitung</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <button class="maps-btn" id="mapsBtn" style="margin-top:0;flex:1" onclick="fetchDist()">Cari Jarak & Hitung</button>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;color:var(--mut);cursor:pointer;"><input type="checkbox" id="ppCheck" onchange="hitung()"> Pulang-Pergi</label>
+    </div>
       <div class="maps-st" id="mapsSt"></div>
     </div>
 
@@ -460,7 +463,10 @@ input:focus{border-color:var(--accent)}
 
     <div class="gps-status"><div class="gps-dot" id="gpsDot"></div><span id="gpsStatusTxt">GPS tidak aktif</span></div>
 
-    <button class="track-btn start" id="trackBtn" onclick="toggleTrack()">▶ Mulai Perjalanan</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button class="track-btn start" id="trackBtn" style="margin-bottom:0;flex:2" onclick="toggleTrack()">▶ Mulai Perjalanan</button>
+      <button class="track-btn hidden" id="pauseBtn" style="margin-bottom:0;flex:1;background:var(--s2);border:1px solid var(--yellow);color:var(--yellow)" onclick="togglePauseTrack()">⏸ Pause</button>
+    </div>
     <button class="track-btn save hidden" id="saveBtn" onclick="simpanRiwayat()">💾 Simpan Hasil Perjalanan</button>
 
     <!-- Speed alert toggle -->
@@ -489,6 +495,25 @@ input:focus{border-color:var(--accent)}
       <div class="trip-card"><div class="trip-lbl">Kec. Maks</div><div class="trip-val" id="tMaks" style="color:var(--yellow)">0</div><div class="trip-sub">km/h</div></div>
     </div>
 
+    
+    <div class="sec" style="margin-top:16px;background:var(--card-bg);border:1px solid var(--b1);border-radius:11px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600">🛠️ Odometer & Servis Kendaraan</span>
+        <button onclick="saveOdo()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Simpan</button>
+      </div>
+      <div class="c2" style="margin-bottom:0">
+        <div>
+          <div style="font-size:10px;color:var(--mut);margin-bottom:4px;line-height:1.2">Odo Kendaraan<br>Saat Ini (km)</div>
+          <input type="number" id="realOdoIn" placeholder="Misal: 15000" style="padding:8px 10px;font-size:14px" oninput="checkMaint()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);margin-bottom:4px;line-height:1.2">Target Servis<br>Berikutnya (km)</div>
+          <input type="number" id="targetOdoIn" placeholder="Misal: 17000" style="padding:8px 10px;font-size:14px" oninput="checkMaint()">
+        </div>
+      </div>
+      <div id="maintAlert" style="margin-top:10px;font-size:11px;padding:8px;border-radius:8px;display:none;line-height:1.4"></div>
+    </div>
+
     <!-- GPS Trace canvas -->
     <div style="margin-bottom:10px">
       <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🗺 Jejak Rute GPS</div>
@@ -499,6 +524,11 @@ input:focus{border-color:var(--accent)}
   <div class="page" id="pg-riwayat">
     <div class="top-bar" style="margin-bottom:4px">
       <div class="pg-title"><div class="pg-icon" style="background:#a78bfa22;border-color:#a78bfa60">📁</div><h1>Riwayat</h1></div>
+      <div style="display:flex;gap:6px">
+        <button onclick="exportData()" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer">⬇️ Backup</button>
+        <button onclick="$('importFile').click()" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer">⬆️ Restore</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
     </div>
     <p class="pg-sub" style="margin-bottom:16px">Catatan perjalanan yang tersimpan</p>
     <div class="history-list" id="historyList"></div>
@@ -543,7 +573,7 @@ const BQUICK=[20000,50000,100000,150000,200000];
 const MAX_SPD=160; const SVG_NS="http://www.w3.org/2000/svg";
 
 let fi=0,cfuel=false,harga=10000, ki=0,cken=false,konsumsi=45, budget=0,mapsKm=null,mapsLabel="";
-let tracking=false,watchId=null,timerInt=null, wakeLock=null;
+let tracking=false, isPaused=false, watchId=null, timerInt=null, wakeLock=null;
 let tripDist=0,tripSec=0,tripSpdSum=0,tripSpdN=0,lastLa=null,lastLo=null,lastT=null;
 let currentKmh=0, targetKmh=0, spdRafId=null;
 let gpsPoints=[];
@@ -857,7 +887,8 @@ function buildTangkiPills(){
   });
 }
 
-function showResult(liter, bisa, biaya, perKm, fc){
+function showResult(liter, bisa, biaya, perKm, fc, actKm){
+  actKm = actKm || mapsKm;
   $("emptyState").classList.add("hidden"); $("resultEl").classList.remove("hidden");
   $("cBiaya").style.color=fc; $("cBiaya").textContent=rp(Math.round(biaya));
   $("cLiter").textContent=liter.toFixed(2)+" L";
@@ -869,12 +900,13 @@ function showResult(liter, bisa, biaya, perKm, fc){
   $("mgPv").innerHTML=`<span style="color:var(--purple)">${Math.round(perKm)}</span><span style="color:var(--mut);font-size:9px"> Rp</span>`;
 
   const tol=parseFloat($("tolIn")?.value)||0;
-  const totalBiaya=biaya+tol;
-  if(mapsKm||tol>0){
+  const tolMulti = ($("ppCheck") && $("ppCheck").checked) ? tol * 2 : tol;
+  const totalBiaya=biaya+tolMulti;
+  if(actKm||tolMulti>0){
     $("etaPanel").classList.remove("hidden");
     $("totalBiayaVal").textContent=rp(Math.round(totalBiaya));
-    if(mapsKm){
-      const jamEst=mapsKm/60;
+    if(actKm){
+      const jamEst=actKm/60;
       const jam=Math.floor(jamEst);
       const mnt=Math.round((jamEst-jam)*60);
       $("etaVal").textContent=jam>0?`${jam}j ${mnt}m`:mnt+"m";
@@ -882,15 +914,15 @@ function showResult(liter, bisa, biaya, perKm, fc){
   } else $("etaPanel").classList.add("hidden");
 
   const sp=$("sisaPanel");
-  if(mapsKm&&biaya>0){
-    const sel=bisa-mapsKm;
+  if(actKm&&biaya>0){
+    const sel=bisa-actKm;
     sp.className="sisa-card "+(sel>=0?"ok":"kurang");
     sp.innerHTML=sel>=0
-      ?`✅ Estimasi cukup untuk ${mapsKm.toFixed(1)} km. Sisa ≈ ${rp(Math.round(sel*perKm))}`
-      :`⚠️ Kurang untuk ${mapsKm.toFixed(1)} km. Perlu tambah ≈ ${rp(Math.round(-sel*perKm))}`;
+      ?`✅ Estimasi cukup untuk ${actKm.toFixed(1)} km. Sisa ≈ ${rp(Math.round(sel*perKm))}`
+      :`⚠️ Kurang untuk ${actKm.toFixed(1)} km. Perlu tambah ≈ ${rp(Math.round(-sel*perKm))}`;
   } else sp.className="";
 
-  if(mapsKm) renderBBMComp(mapsKm, perKm);
+  if(actKm) renderBBMComp(actKm, perKm);
   else $("bbmCompPanel").classList.add("hidden");
 
   $("shareBtn").classList.remove("hidden");
@@ -919,13 +951,14 @@ function hitung(){
     return;
   }
 
-  if(!budget&&!mapsKm){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
+  const actKm = (mapsKm && $("ppCheck") && $("ppCheck").checked) ? mapsKm * 2 : mapsKm;
+  if(!budget&&!actKm){$("emptyState").classList.remove("hidden");$("resultEl").classList.add("hidden");return}
   let liter=0,bisa=0,biaya=0,perKm=0;
   if(budget>0){liter=budget/harga;bisa=liter*realKonsumsi;biaya=budget;perKm=biaya/bisa;}
-  else if(mapsKm>0){bisa=mapsKm;liter=bisa/realKonsumsi;biaya=liter*harga;perKm=biaya/bisa;}
-  showResult(liter, bisa, biaya, perKm, fc);
+  else if(actKm>0){bisa=actKm;liter=bisa/realKonsumsi;biaya=liter*harga;perKm=biaya/bisa;}
+  showResult(liter, bisa, biaya, perKm, fc, actKm);
 
-  if(mapsKm){
+  if(actKm){
     const tjCoord=geoFromDB($("tujuanIn").value.trim());
     if(tjCoord) fetchCuaca(tjCoord.la,tjCoord.lo);
     else $("cuacaPanel").classList.add("hidden");
@@ -973,6 +1006,27 @@ async function reqWL(){try{wakeLock=await navigator.wakeLock.request('screen')}c
 function relWL(){if(wakeLock!==null){wakeLock.release();wakeLock=null}}
 
 function toggleTrack(){tracking?stopTrack():startTrack()}
+
+function togglePauseTrack() {
+  if (!tracking) return;
+  isPaused = !isPaused;
+  const pb = $("pauseBtn");
+  if (isPaused) {
+    pb.textContent = "▶ Resume";
+    clearInterval(timerInt);
+    if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    $("gpsStatusTxt").textContent = "Tracker Di-pause";
+    $("gpsDot").classList.remove("active");
+  } else {
+    pb.textContent = "⏸ Pause";
+    lastLa = null; lastLo = null; lastT = null; // reset anchor to prevent distance jump
+    timerInt = setInterval(() => { tripSec++; $("tWaktu").textContent = fmtT(tripSec) }, 1000);
+    watchId = navigator.geolocation.watchPosition(onPos, e => $("gpsStatusTxt").textContent = "GPS Error: " + e.message, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+    $("gpsStatusTxt").textContent = "Melanjutkan GPS...";
+    $("gpsDot").classList.add("active");
+  }
+}
+
 function startTrack(){
   if(!("geolocation" in navigator)){alert("Browser tidak mendukung GPS.");return}
   tripDist=0;tripSec=0;tripSpdSum=0;tripSpdN=0;tripMaxKmh=0;lastAlertKmh=0;
@@ -981,6 +1035,8 @@ function startTrack(){
   currentKmh=0; targetKmh=0;
   $("saveBtn").classList.add("hidden");
   $("trackBtn").textContent="⏹ Stop Perjalanan"; $("trackBtn").className="track-btn stop";
+  $("pauseBtn").classList.remove("hidden");
+  isPaused = false; $("pauseBtn").textContent="⏸ Pause";
   $("gpsDot").classList.add("active"); $("gpsStatusTxt").textContent="Menunggu GPS...";
   tracking=true; reqWL();
   timerInt=setInterval(()=>{tripSec++;$("tWaktu").textContent=fmtT(tripSec)},1000);
@@ -990,6 +1046,7 @@ function stopTrack(){
   tracking=false; relWL(); clearInterval(timerInt);
   if(watchId!=null) navigator.geolocation.clearWatch(watchId);
   $("trackBtn").textContent="▶ Mulai Perjalanan"; $("trackBtn").className="track-btn start";
+  $("pauseBtn").classList.add("hidden");
   $("gpsDot").classList.remove("active");
   $("gpsStatusTxt").textContent="Selesai — "+fmtT(tripSec);
   $("saveBtn").classList.remove("hidden");
@@ -1010,7 +1067,14 @@ function onPos(pos){
 
   if(lastLa!=null){
     const seg=haversine(lastLa,lastLo,la,lo);
-    if(kmh>2.0&&seg<0.5) tripDist+=seg;
+    if(kmh>2.0&&seg<0.5) {
+      tripDist+=seg;
+      let rOdo = parseFloat($("realOdoIn").value);
+      if(!isNaN(rOdo)) {
+        $("realOdoIn").value = (rOdo + seg).toFixed(2);
+        checkMaint();
+      }
+    }
   }
   if(kmh>0){tripSpdSum+=kmh;tripSpdN++}
 
@@ -1249,6 +1313,10 @@ function autoFillAlamat() {
 /* ════ CETAK NOTA PNG — DENGAN LOGO 1001176931.png ════ */
 function downloadNota() {
   $("notaModal").style.display = "flex";
+  const now = new Date();
+  const y = now.getFullYear(), m = pad(now.getMonth()+1), d = pad(now.getDate());
+  const hh = pad(now.getHours()), mm = pad(now.getMinutes());
+  $("inTglNota").value = `${y}-${m}-${d}T${hh}:${mm}`;
 }
 
 function eksekusiCetakNota(action) {
@@ -1268,8 +1336,9 @@ function eksekusiCetakNota(action) {
   const literRaw = ($("cLiter").textContent || "0").replace(" L", "");
 
   const noTrans = Math.floor(1000000 + Math.random() * 9000000);
-  const now = new Date();
-  const tgl = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+  const dVal = $("inTglNota").value;
+  const now = dVal ? new Date(dVal) : new Date();
+  const tgl = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`;
 
   $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
   $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
@@ -1421,6 +1490,41 @@ function pakaiPreset(id){
   initDropdowns(); hitung();
   $("presetModal").style.display="none";
 }
+
+function exportData(){
+  const data = {
+    history: JSON.parse(localStorage.getItem('bbm-history')||"[]"),
+    presets: JSON.parse(localStorage.getItem('bbm-presets')||"[]"),
+    odo: localStorage.getItem('bbm-odo')||"0",
+    realOdo: localStorage.getItem('bbm-real-odo')||"",
+    targetOdo: localStorage.getItem('bbm-target-odo')||""
+  };
+  const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `BBM_Tracker_Backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if(d.history) localStorage.setItem('bbm-history', JSON.stringify(d.history));
+      if(d.presets) localStorage.setItem('bbm-presets', JSON.stringify(d.presets));
+      if(d.odo !== undefined) localStorage.setItem('bbm-odo', d.odo);
+      if(d.realOdo !== undefined) localStorage.setItem('bbm-real-odo', d.realOdo);
+      if(d.targetOdo !== undefined) localStorage.setItem('bbm-target-odo', d.targetOdo);
+      alert("Data berhasil di-restore!");
+      window.location.reload();
+    } catch(err){ alert("File backup tidak valid!"); }
+  };
+  reader.readAsText(file);
+}
+
 function hapusPreset(id){
   const presets=loadPresets().filter(x=>x.id!==id);
   localStorage.setItem("bbm-presets",JSON.stringify(presets));
@@ -1479,6 +1583,40 @@ function getOdometer(){return parseFloat(localStorage.getItem("bbm-odo")||"0")}
 function addOdometer(km){localStorage.setItem("bbm-odo",(getOdometer()+km).toFixed(2))}
 $("tOdo") && ($("tOdo").textContent=getOdometer().toFixed(2));
 
+
+function loadOdo(){
+  const rOdo = localStorage.getItem("bbm-real-odo");
+  const tOdo = localStorage.getItem("bbm-target-odo");
+  if(rOdo) $("realOdoIn").value = rOdo;
+  if(tOdo) $("targetOdoIn").value = tOdo;
+  checkMaint();
+}
+function saveOdo(){
+  localStorage.setItem("bbm-real-odo", $("realOdoIn").value);
+  localStorage.setItem("bbm-target-odo", $("targetOdoIn").value);
+  alert("Data Odometer & Target Servis disimpan!");
+  checkMaint();
+}
+function checkMaint(){
+  const rOdo = parseFloat($("realOdoIn").value);
+  const tOdo = parseFloat($("targetOdoIn").value);
+  const al = $("maintAlert");
+  if(!rOdo || !tOdo || isNaN(rOdo) || isNaN(tOdo)) { al.style.display="none"; return; }
+  
+  const sisa = tOdo - rOdo;
+  al.style.display = "block";
+  if(sisa <= 0) {
+    al.style.background = "#7f1d1d40"; al.style.border = "1px solid var(--red)"; al.style.color = "#fdba74";
+    al.innerHTML = `⚠️ <b>Waktunya Servis!</b> Kendaraan telah melewati batas target servis sejauh ${Math.abs(sisa).toFixed(1)} km.`;
+  } else if (sisa <= 250) {
+    al.style.background = "#b4530940"; al.style.border = "1px solid var(--yellow)"; al.style.color = "#fde047";
+    al.innerHTML = `🔔 <b>Servis Hampir Tiba!</b> Tersisa ${sisa.toFixed(1)} km lagi menuju servis rutin.`;
+  } else {
+    al.style.background = "#052e1640"; al.style.border = "1px solid var(--green)"; al.style.color = "#86efac";
+    al.innerHTML = `✅ Kondisi aman. Tersisa ${sisa.toFixed(1)} km menuju servis.`;
+  }
+}
+
 function checkSpeedAlert(kmh){
   const limit=parseFloat($("speedLimitSel").value)||0;
   if(!limit) return;
@@ -1521,13 +1659,21 @@ function drawTrace(){
 function simpanRiwayat(){
   if(tripDist < 0.1) { alert("Jarak terlalu pendek untuk disimpan."); return; }
   const rK = konsumsi / (1 + parseFloat($("koreksiJalan").value) + parseFloat($("koreksiBeban").value));
+  let trace = [];
+  if(gpsPoints.length > 0){
+    const step = Math.max(1, Math.floor(gpsPoints.length / 50));
+    for(let i=0; i<gpsPoints.length; i+=step){
+      trace.push([parseFloat(gpsPoints[i].la.toFixed(5)), parseFloat(gpsPoints[i].lo.toFixed(5))]);
+    }
+  }
   let h = JSON.parse(localStorage.getItem('bbm-history')||"[]");
   h.unshift({
     tgl: new Date().toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),
     jrk: tripDist.toFixed(1),
     wkt: fmtT(tripSec),
     bbm: (tripDist/rK).toFixed(2),
-    id: Date.now()
+    id: Date.now(),
+    trace: trace
   });
   localStorage.setItem('bbm-history', JSON.stringify(h));
   $("saveBtn").classList.add("hidden");
@@ -1550,8 +1696,31 @@ function renderHistory(){
           <div class="hc-stat">Waktu: <span>${i.wkt}</span></div>
           <div class="hc-stat">BBM: <span>${i.bbm} L</span></div>
         </div>
+        ${i.trace && i.trace.length > 1 ? `<canvas id="hc-canv-${i.id}" width="400" height="100" style="width:100%;height:80px;border-radius:6px;background:var(--s2);margin-top:6px;border:1px solid var(--b2)"></canvas>` : ''}
       </div>`;
   });
+
+  h.forEach(i => {
+    if(i.trace && i.trace.length > 1) drawMiniTrace(`hc-canv-${i.id}`, i.trace);
+  });
+}
+
+function drawMiniTrace(id, pts){
+  const canvas = $(id); if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const lats = pts.map(p=>p[0]), lons = pts.map(p=>p[1]);
+  const minLa=Math.min(...lats), maxLa=Math.max(...lats);
+  const minLo=Math.min(...lons), maxLo=Math.max(...lons);
+  const pad=12;
+  const scX=lo=>(lo-minLo)/(maxLo-minLo||1)*(W-pad*2)+pad;
+  const scY=la=>(1-(la-minLa)/(maxLa-minLa||1))*(H-pad*2)+pad;
+  ctx.lineWidth=3; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#60a5fa";
+  ctx.beginPath(); ctx.moveTo(scX(pts[0][1]), scY(pts[0][0]));
+  for(let i=1;i<pts.length;i++) ctx.lineTo(scX(pts[i][1]), scY(pts[i][0]));
+  ctx.stroke();
+  ctx.fillStyle="#22c55e"; ctx.beginPath(); ctx.arc(scX(pts[0][1]),scY(pts[0][0]),4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#ef4444"; ctx.beginPath(); ctx.arc(scX(pts[pts.length-1][1]),scY(pts[pts.length-1][0]),4,0,Math.PI*2); ctx.fill();
 }
 
 function hapusRiwayat(id){
@@ -1661,6 +1830,7 @@ async function loadHargaJSON(){
 
 buildSpeedometer(); initDropdowns(); buildBudgetPills(); buildTangkiPills(); hitung();
 loadHargaJSON();
+loadOdo();
 
 /* ════ PWA UPDATE ════ */
 let swRegistration=null;
@@ -1718,6 +1888,10 @@ if("serviceWorker" in navigator){
     
     <div style="font-size:11px;color:var(--mut);margin-bottom:16px;line-height:1.5">
       💡 Data BBM, Liter, dan Total Harga akan ditarik otomatis dari hasil kalkulator Anda.
+    </div>
+    <div class="sec">
+      <span class="lbl">Waktu Transaksi (Opsional)</span>
+      <input type="datetime-local" id="inTglNota" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b2);background:var(--s2);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px">
     </div>
 
     <div style="display:flex;gap:6px;flex-wrap:wrap">
