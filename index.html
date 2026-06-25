@@ -1254,172 +1254,135 @@ function downloadNota() {
 function eksekusiCetakNota() {
   $("notaModal").style.display = "none";
   const btn = $("printBtn");
-  const orig = btn.innerHTML; 
-  btn.innerHTML = "⏳ Sedang memproses..."; 
+  const orig = btn.innerHTML;
+  btn.innerHTML = "⏳ Sedang memproses...";
   btn.disabled = true;
 
-  // Preload logo dan ubah ke base64 agar html2canvas selalu bisa membaca
-  const logoImg = document.getElementById('logoPertamina');
-  const originalSrc = logoImg.src;
+  // Ambil data kalkulator
+  const fn = FUEL[fi]?.nama || "BBM";
+  const biayaRaw = parseFloat(($("cBiaya").textContent || "0").replace(/[^0-9]/g, "")) || 0;
+  const literRaw = ($("cLiter").textContent || "0").replace(" L", "");
 
-  function getBase64FromImage(img) {
-    return new Promise((resolve, reject) => {
-      if (img.complete && img.naturalWidth > 0) {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-        } catch(e) {
-          reject(e);
-        }
-      } else {
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/png'));
-          } catch(e) {
-            reject(e);
-          }
-        };
-        img.onerror = () => reject(new Error('Gagal memuat gambar logo'));
-      }
-    });
+  const noTrans = Math.floor(1000000 + Math.random() * 9000000);
+  const now = new Date();
+  const tgl = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+  $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
+  $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
+  $("nShift").textContent = "1";
+  $("nNoTrans").textContent = noTrans;
+  $("nTanggal").textContent = tgl;
+
+  $("nPompa").textContent = $("inPompa").value || "2";
+  $("nBBM").textContent = fn;
+  $("nHarga").textContent = rp(harga);
+  $("nLiter").textContent = "(L) " + literRaw;
+  $("nTotalAtas").textContent = rp(biayaRaw);
+  $("nTotalBawah").textContent = rp(biayaRaw);
+  $("nOpr").textContent = $("inOpr").value || "ADMIN";
+
+  if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
+    $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
+    $("nSubsidiMsg").style.display = "block";
+  } else {
+    $("nSubsidiMsg").style.display = "none";
   }
 
-  getBase64FromImage(logoImg).then(base64 => {
-    // Ganti sementara src dengan base64 agar html2canvas mudah memproses
-    logoImg.src = base64;
-    return cetakNotaInternal(logoImg);
+  // Jalankan html2canvas dengan timeout
+  let timeoutId = setTimeout(() => {
+    alert("Proses cetak terlalu lama. Coba ulangi.");
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }, 15000); // 15 detik timeout
+
+  html2canvas($("notaCetak"), {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    allowTaint: true,
+    logging: false
+  }).then(canvas => {
+    clearTimeout(timeoutId);
+    // Proses canvas → blob atau data URL
+    canvas.toBlob(blob => {
+      if (!blob) {
+        // Fallback ke data URL
+        try {
+          const dataUrl = canvas.toDataURL("image/png");
+          if (dataUrl && dataUrl.length > 1000) {
+            const link = document.createElement('a');
+            link.download = `Struk_SPBU_${noTrans}.png`;
+            link.href = dataUrl;
+            link.click();
+            btn.innerHTML = orig;
+            btn.disabled = false;
+            return;
+          }
+        } catch (e) { /* fallthrough */ }
+        alert("Gagal membuat gambar. Coba screenshot manual.");
+        btn.innerHTML = orig;
+        btn.disabled = false;
+        return;
+      }
+
+      const fileName = `Struk_SPBU_${noTrans}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'Struk SPBU',
+          text: 'Struk pembelian BBM'
+        }).finally(() => {
+          btn.innerHTML = orig;
+          btn.disabled = false;
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 150);
+        btn.innerHTML = orig;
+        btn.disabled = false;
+      }
+    }, "image/png");
   }).catch(err => {
-    console.warn('Gagal konversi logo ke base64, lanjutkan dengan src asli', err);
-    return cetakNotaInternal(logoImg);
-  }).finally(() => {
-    // Kembalikan src asli setelah selesai
-    setTimeout(() => { logoImg.src = originalSrc; }, 200);
-  });
-
-  function cetakNotaInternal(logoImg) {
-    const fn = FUEL[fi]?.nama || "BBM";
-    const biayaRaw = parseFloat(($("cBiaya").textContent||"0").replace(/[^0-9]/g,"")) || 0;
-    const literRaw = ($("cLiter").textContent||"0").replace(" L","");
-    
-    const noTrans = Math.floor(1000000 + Math.random() * 9000000); 
-    const now = new Date();
-    const tgl = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-    
-    $("nSpbu").textContent = $("inSpbuNo").value || "54.601.88";
-    $("nAlamat").innerHTML = ($("inSpbuAlamat").value || "JL. SULAWESI NO. 8").replace(/,/g, "<br>");
-    $("nShift").textContent = "1";
-    $("nNoTrans").textContent = noTrans;
-    $("nTanggal").textContent = tgl;
-    
-    $("nPompa").textContent = $("inPompa").value || "2";
-    $("nBBM").textContent = fn;
-    $("nHarga").textContent = rp(harga);
-    $("nLiter").textContent = "(L) " + literRaw;
-    $("nTotalAtas").textContent = rp(biayaRaw);
-    $("nTotalBawah").textContent = rp(biayaRaw);
-    $("nOpr").textContent = $("inOpr").value || "ADMIN";
-
-    if (fn.toLowerCase().includes("pertalite") || fn.toLowerCase().includes("solar")) {
-       $("nSubsidiMsg").innerHTML = "Anda menggunakan subsidi BBM dari negara.<br>Mari menggunakan Pertamax series dan Dex series,<br>subsidi hanya untuk yang berhak menerimanya.";
-       $("nSubsidiMsg").style.display = "block";
-    } else {
-       $("nSubsidiMsg").style.display = "none";
-    }
-
-    return html2canvas($("notaCetak"), { 
-      scale: 2, 
-      backgroundColor: "#ffffff", 
+    clearTimeout(timeoutId);
+    console.error("html2canvas error:", err);
+    // Coba dengan skala lebih rendah
+    html2canvas($("notaCetak"), {
+      scale: 1.5,
+      backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
       logging: false
-    }).then(canvas => {
-      canvas.toBlob(blob => {
-        if (!blob) {
-          try {
-            const dataUrl = canvas.toDataURL("image/png");
-            if (dataUrl && dataUrl.length > 1000) {
-              const link = document.createElement('a');
-              link.download = `Struk_SPBU_${noTrans}.png`;
-              link.href = dataUrl;
-              link.click();
-              btn.innerHTML = orig; 
-              btn.disabled = false;
-              return;
-            }
-          } catch(e2) {}
-          throw new Error("Gagal generate gambar");
-        }
-        
-        const fileName = `Struk_SPBU_${noTrans}.png`;
-        const file = new File([blob], fileName, { type: "image/png" });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: 'Struk SPBU',
-            text: 'Struk pembelian BBM'
-          }).finally(() => {
-            btn.innerHTML = orig; 
-            btn.disabled = false;
-          });
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, 150);
-          
-          btn.innerHTML = orig; 
-          btn.disabled = false;
-        }
-      }, "image/png");
-      
-    }).catch(e => {
-      console.error("html2canvas error:", e);
-      // Fallback skala lebih rendah
-      html2canvas($("notaCetak"), { 
-        scale: 1.5, 
-        backgroundColor: "#ffffff", 
-        useCORS: true,
-        allowTaint: true,
-        logging: false
-      }).then(canvas2 => {
-        try {
-          const url = canvas2.toDataURL("image/png");
-          const a = document.createElement('a');
-          a.download = `Struk_SPBU_${noTrans}.png`;
-          a.href = url;
-          a.click();
-          btn.innerHTML = orig; 
-          btn.disabled = false;
-        } catch(e2) {
-          alert("Gagal cetak struk. Silakan coba screenshot manual.");
-          btn.innerHTML = orig; 
-          btn.disabled = false;
-        }
-      }).catch(e2 => {
-        alert("Gagal cetak struk: " + e.message);
-        btn.innerHTML = orig; 
+    }).then(canvas2 => {
+      try {
+        const url = canvas2.toDataURL("image/png");
+        const a = document.createElement('a');
+        a.download = `Struk_SPBU_${noTrans}.png`;
+        a.href = url;
+        a.click();
+        btn.innerHTML = orig;
         btn.disabled = false;
-      });
+      } catch (e2) {
+        alert("Gagal cetak struk. Silakan screenshot manual.");
+        btn.innerHTML = orig;
+        btn.disabled = false;
+      }
+    }).catch(e2 => {
+      alert("Gagal cetak struk: " + e2.message);
+      btn.innerHTML = orig;
+      btn.disabled = false;
     });
-  }
+  });
 }
 
 /* ════ SHARE HASIL ════ */
