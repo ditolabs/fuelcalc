@@ -283,7 +283,7 @@ input:focus{border-color:var(--accent)}
         <div class="irow"><span class="ul">Rp</span><input type="number" id="fuelCustomIn" placeholder="Masukkan Harga per Liter" oninput="onCF()"><span class="ul">/L</span></div>
       </div>
       
-      <div class="harga-row"><span class="harga-note">Data: mypertamina.id &bull; <span id="lastUpdate">10 Jun 2026</span></span><button class="refresh-btn" id="refreshBtn" onclick="refreshHarga()">🔄 Refresh</button></div>
+      <div class="harga-row"><span class="harga-note">Data: pertaminapatraniaga.com &bull; <span id="lastUpdate">10 Jun 2026</span></span><button class="refresh-btn" id="refreshBtn" onclick="refreshHarga()">🔄 Refresh</button></div>
       <div class="refresh-msg" id="refreshMsg"></div>
     </div>
 
@@ -689,15 +689,21 @@ async function refreshHarga(){
   const btn=$("refreshBtn"); const msg=$("refreshMsg");
   btn.textContent="⏳ Refreshing..."; btn.disabled=true; msg.className="refresh-msg";
   try{
-    const res=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent("https://mypertamina.id/fuels-harga"));
+    const res=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent("https://pertaminapatraniaga.com/page/harga-terbaru-bbm"));
     if(!res.ok) throw new Error("error");
-    const html=await res.text();
+    let html=await res.text();
+    // Halaman ini memuat harga per-provinsi (Aceh s.d. Papua) dalam satu
+    // halaman. Potong mulai dari section "DKI Jakarta" biar tidak salah
+    // ambil harga provinsi lain (mis. Aceh, yang paling atas).
+    const anchorIdx=html.search(/DKI\s*Jakarta/i);
+    if(anchorIdx>=0) html=html.slice(anchorIdx, anchorIdx+3000);
     let updated=false;
     [ {nama:"Pertalite",re:/pertalite[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
-      {nama:"Pertamax",re:/pertamax(?!\s*turbo|\s*green)[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Pertamax",re:/pertamax(?!\s*turbo|\s*green|\s*\(?pertashop)[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
       {nama:"Pertamax Turbo",re:/pertamax\s*turbo[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
       {nama:"Dexlite",re:/dexlite[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
-      {nama:"Pertamina Dex",re:/pertamina\s*dex[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i}
+      {nama:"Pertamina Dex",re:/pertamina\s*dex[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Solar",re:/bio\s*solar[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i}
     ].forEach(p=>{
       const m=html.match(p.re);
       if(m){ const h=parseInt(m[1].replace(/\./g,""),10); if(h>1000){

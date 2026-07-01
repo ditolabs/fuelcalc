@@ -33,18 +33,25 @@ OUTPUT_FILE = Path("harga.json")
 # Simpan beberapa kandidat URL — kalau salah satu berubah lagi di kemudian
 # hari, scraper masih punya opsi lain sebelum jatuh ke fallback.
 TARGET_URLS = [
+    "https://pertaminapatraniaga.com/page/harga-terbaru-bbm",  # sumber resmi utama
     "https://mypertamina.id/fuels-harga",
     "https://mypertamina.id/about/product-price",  # legacy, dibiarkan sebagai jaga-jaga
 ]
 
-# Regex untuk tiap produk — urutan penting (Turbo/Green harus sebelum nama dasarnya)
-# Jarak pencarian (0,400) diperlebar karena halaman /fuels-harga menyusun harga
-# per-provinsi sehingga jarak antara nama produk dan angka harga bisa lebih jauh.
+# Anchor wilayah — pertaminapatraniaga.com menampilkan tabel harga per-provinsi
+# dari Aceh sampai Papua dalam satu halaman panjang. Tanpa anchor ini, regex
+# di bawah bisa salah ambil harga provinsi lain (mis. Aceh, karena dia yang
+# pertama muncul), bukan DKI Jakarta/Jabodetabek (PBBKB 5%) yang dipakai app.
+REGION_ANCHOR = re.compile(r"DKI\s*Jakarta", re.IGNORECASE)
+REGION_WINDOW = 3000  # jumlah karakter yang diambil setelah anchor ditemukan
+
+# Regex untuk tiap produk — urutan penting (Turbo/Green harus sebelum nama dasarnya).
+# Pertamax dikecualikan dari varian "Pertashop" (harga beda, bukan yang dipakai app).
 PATTERNS = [
     ("Pertalite",      r"pertalite[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Pertamax Turbo", r"pertamax\s*turbo[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Pertamax Green", r"pertamax\s*green[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
-    ("Pertamax",       r"pertamax(?!\s*turbo|\s*green)[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
+    ("Pertamax",       r"pertamax(?!\s*turbo|\s*green|\s*\(?pertashop)[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Dexlite",        r"dexlite[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Pertamina Dex",  r"pertamina\s*dex[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Solar",          r"bio\s*solar[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
@@ -52,14 +59,38 @@ PATTERNS = [
 
 
 def parse_harga(html: str) -> dict[str, int]:
-    """Ekstrak harga dari HTML, return dict nama→harga."""
+    """Ekstrak harga dari HTML, return dict nama→harga.
+
+    Kalau halaman menyusun harga per-provinsi (seperti pertaminapatraniaga.com,
+    yang mendaftar Aceh sampai Papua di satu halaman), cari dulu section
+    'DKI Jakarta' supaya tidak salah ambil harga provinsi lain — soalnya
+    regex biasa bakal nangkep kemunculan pertama yang ketemu (Aceh, karena
+    dia paling atas), bukan Jakarta yang dipakai app ini (PBBKB 5%).
+    """
+    def extract(area: str) -> dict[str, int]:
+        found = {}
+        for nama, pattern in PATTERNS:
+            m = re.search(pattern, area, re.IGNORECASE)
+            if m:
+                h = int(m.group(1).replace(".", ""), 10)
+                if 1000 < h < 100_000:  # sanity check
+                    found[nama] = h
+        return found
+
+    anchor = REGION_ANCHOR.search(html)
     result = {}
-    for nama, pattern in PATTERNS:
-        m = re.search(pattern, html, re.IGNORECASE)
-        if m:
-            h = int(m.group(1).replace(".", ""), 10)
-            if 1000 < h < 100_000:   # sanity check
-                result[nama] = h
+    if anchor:
+        section = html[anchor.start(): anchor.start() + REGION_WINDOW]
+        result = extract(section)
+
+    if len(result) < 3:
+        # Anchor tidak ketemu / section-based gagal -> fallback cari di
+        # seluruh halaman (dipakai untuk situs yang tidak per-provinsi,
+        # misalnya mypertamina.id).
+        fallback = extract(html)
+        for nama, harga in fallback.items():
+            result.setdefault(nama, harga)
+
     return result
 
 
