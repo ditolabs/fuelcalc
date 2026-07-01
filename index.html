@@ -563,9 +563,9 @@ input:focus{border-color:var(--accent)}
 let FUEL=[
   {nama:"Pertalite",      h:10000, w:"#22c55e"},
   {nama:"Pertamax",       h:16250, w:"#f97316"},
-  {nama:"Pertamax Turbo", h:20750, w:"#ef4444"},
-  {nama:"Dexlite",        h:23000, w:"#3b82f6"},
-  {nama:"Pertamina Dex",  h:24800, w:"#8b5cf6"},
+  {nama:"Pertamax Turbo", h:19300, w:"#ef4444"},
+  {nama:"Dexlite",        h:19700, w:"#3b82f6"},
+  {nama:"Pertamina Dex",  h:21150, w:"#8b5cf6"},
   {nama:"Solar",          h: 6800, w:"#eab308"},
 ];
 const KEN=[{nama:"Motor Matic",k:45},{nama:"Motor Sport",k:35},{nama:"Mobil City",k:18},{nama:"Mobil SUV",k:12}];
@@ -689,14 +689,15 @@ async function refreshHarga(){
   const btn=$("refreshBtn"); const msg=$("refreshMsg");
   btn.textContent="⏳ Refreshing..."; btn.disabled=true; msg.className="refresh-msg";
   try{
-    const res=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent("https://mypertamina.id/about/product-price"));
+    const res=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent("https://mypertamina.id/fuels-harga"));
     if(!res.ok) throw new Error("error");
     const html=await res.text();
     let updated=false;
-    [ {nama:"Pertalite",re:/pertalite[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
-      {nama:"Pertamax",re:/pertamax(?!\s*turbo|green)[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
-      {nama:"Pertamax Turbo",re:/pertamax\s*turbo[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i},
-      {nama:"Dexlite",re:/dexlite[\s\S]{0,200}?Rp[\s.]*([\d.]+)/i}
+    [ {nama:"Pertalite",re:/pertalite[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Pertamax",re:/pertamax(?!\s*turbo|\s*green)[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Pertamax Turbo",re:/pertamax\s*turbo[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Dexlite",re:/dexlite[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i},
+      {nama:"Pertamina Dex",re:/pertamina\s*dex[\s\S]{0,400}?Rp[\s.]*([\d.]+)/i}
     ].forEach(p=>{
       const m=html.match(p.re);
       if(m){ const h=parseInt(m[1].replace(/\./g,""),10); if(h>1000){
