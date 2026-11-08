@@ -19,34 +19,24 @@ from pathlib import Path
 # ── Harga hardcode sebagai fallback terakhir ──────────────────────────────────
 HARGA_FALLBACK = [
     {"nama": "Pertalite",      "harga": 10000, "warna": "#22c55e", "ron": "RON 90", "tipe": "subsidi"},
-    {"nama": "Pertamax",       "harga": 16250, "warna": "#f97316", "ron": "RON 92", "tipe": "nonsubsidi"},
-    {"nama": "Pertamax Turbo", "harga": 19300, "warna": "#ef4444", "ron": "RON 98", "tipe": "nonsubsidi"},
-    {"nama": "Dexlite",        "harga": 19700, "warna": "#3b82f6", "ron": "CN 51",  "tipe": "nonsubsidi"},
-    {"nama": "Pertamina Dex",  "harga": 21150, "warna": "#8b5cf6", "ron": "CN 53",  "tipe": "nonsubsidi"},
+    {"nama": "Pertamax",       "harga": 15950, "warna": "#f97316", "ron": "RON 92", "tipe": "nonsubsidi"},
+    {"nama": "Pertamax Turbo", "harga": 19600, "warna": "#ef4444", "ron": "RON 98", "tipe": "nonsubsidi"},
+    {"nama": "Dexlite",        "harga": 23700, "warna": "#3b82f6", "ron": "CN 51",  "tipe": "nonsubsidi"},
+    {"nama": "Pertamina Dex",  "harga": 25200, "warna": "#8b5cf6", "ron": "CN 53",  "tipe": "nonsubsidi"},
     {"nama": "Solar",          "harga":  6800, "warna": "#eab308", "ron": "CN 48",  "tipe": "subsidi"},
 ]
 
 OUTPUT_FILE = Path("harga.json")
 
-# URL lama "mypertamina.id/about/product-price" SUDAH TIDAK DIPAKAI LAGI.
-# URL resmi saat ini: mypertamina.id/fuels-harga
-# Simpan beberapa kandidat URL — kalau salah satu berubah lagi di kemudian
-# hari, scraper masih punya opsi lain sebelum jatuh ke fallback.
 TARGET_URLS = [
-    "https://pertaminapatraniaga.com/page/harga-terbaru-bbm",  # sumber resmi utama
+    "https://pertaminapatraniaga.com/page/harga-terbaru-bbm",
     "https://mypertamina.id/fuels-harga",
-    "https://mypertamina.id/about/product-price",  # legacy, dibiarkan sebagai jaga-jaga
+    "https://mypertamina.id/about/product-price",
 ]
 
-# Anchor wilayah — pertaminapatraniaga.com menampilkan tabel harga per-provinsi
-# dari Aceh sampai Papua dalam satu halaman panjang. Tanpa anchor ini, regex
-# di bawah bisa salah ambil harga provinsi lain (mis. Aceh, karena dia yang
-# pertama muncul), bukan DKI Jakarta/Jabodetabek (PBBKB 5%) yang dipakai app.
 REGION_ANCHOR = re.compile(r"DKI\s*Jakarta", re.IGNORECASE)
-REGION_WINDOW = 3000  # jumlah karakter yang diambil setelah anchor ditemukan
+REGION_WINDOW = 3000
 
-# Regex untuk tiap produk — urutan penting (Turbo/Green harus sebelum nama dasarnya).
-# Pertamax dikecualikan dari varian "Pertashop" (harga beda, bukan yang dipakai app).
 PATTERNS = [
     ("Pertalite",      r"pertalite[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
     ("Pertamax Turbo", r"pertamax\s*turbo[\s\S]{0,400}?Rp[\s.]*([\d.]+)"),
@@ -59,21 +49,13 @@ PATTERNS = [
 
 
 def parse_harga(html: str) -> dict[str, int]:
-    """Ekstrak harga dari HTML, return dict nama→harga.
-
-    Kalau halaman menyusun harga per-provinsi (seperti pertaminapatraniaga.com,
-    yang mendaftar Aceh sampai Papua di satu halaman), cari dulu section
-    'DKI Jakarta' supaya tidak salah ambil harga provinsi lain — soalnya
-    regex biasa bakal nangkep kemunculan pertama yang ketemu (Aceh, karena
-    dia paling atas), bukan Jakarta yang dipakai app ini (PBBKB 5%).
-    """
     def extract(area: str) -> dict[str, int]:
         found = {}
         for nama, pattern in PATTERNS:
             m = re.search(pattern, area, re.IGNORECASE)
             if m:
                 h = int(m.group(1).replace(".", ""), 10)
-                if 1000 < h < 100_000:  # sanity check
+                if 1000 < h < 100_000:
                     found[nama] = h
         return found
 
@@ -84,9 +66,6 @@ def parse_harga(html: str) -> dict[str, int]:
         result = extract(section)
 
     if len(result) < 3:
-        # Anchor tidak ketemu / section-based gagal -> fallback cari di
-        # seluruh halaman (dipakai untuk situs yang tidak per-provinsi,
-        # misalnya mypertamina.id).
         fallback = extract(html)
         for nama, harga in fallback.items():
             result.setdefault(nama, harga)
@@ -95,9 +74,6 @@ def parse_harga(html: str) -> dict[str, int]:
 
 
 def scrape_requests() -> dict[str, int] | None:
-    """Coba scrape dengan requests (cepat, ringan). Kemungkinan besar gagal
-    kalau mypertamina.id menerapkan bot-detection/JS-render, tapi tetap
-    dicoba dulu karena paling murah."""
     import requests
     headers = {
         "User-Agent": (
@@ -122,9 +98,6 @@ def scrape_requests() -> dict[str, int] | None:
 
 
 def scrape_playwright() -> dict[str, int] | None:
-    """Fallback: scrape via Playwright headless Chromium (bisa render JS,
-    lebih tahan terhadap halaman yang butuh eksekusi JS untuk menampilkan
-    harga)."""
     from playwright.sync_api import sync_playwright
     for url in TARGET_URLS:
         try:
@@ -151,7 +124,6 @@ def scrape_playwright() -> dict[str, int] | None:
 
 
 def load_existing() -> list[dict] | None:
-    """Baca harga.json yang sudah ada."""
     if OUTPUT_FILE.exists():
         try:
             d = json.loads(OUTPUT_FILE.read_text())
@@ -162,7 +134,6 @@ def load_existing() -> list[dict] | None:
 
 
 def build_output(scraped: dict[str, int] | None, base: list[dict]) -> dict:
-    """Gabungkan hasil scraping dengan data base."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     bbm   = []
     for item in base:
@@ -181,19 +152,12 @@ def build_output(scraped: dict[str, int] | None, base: list[dict]) -> dict:
 def main():
     print(f"=== scrape_harga.py | {datetime.now().strftime('%Y-%m-%d %H:%M')} ===")
 
-    # Coba scrape
     scraped = scrape_requests() or scrape_playwright()
-
-    # Base data: gunakan existing JSON atau hardcode
     base = load_existing() or HARGA_FALLBACK
-
-    # Build & simpan output
     output = build_output(scraped, base)
     OUTPUT_FILE.write_text(json.dumps(output, ensure_ascii=False, indent=2))
     print(f"harga.json ditulis: {output['source']} | {output['updated']}")
 
-    # Exit code 0 agar GitHub Actions tetap commit walau scrape gagal
-    # (data fallback lebih baik daripada file kosong)
     if not scraped:
         print("⚠️  Scraping gagal — menggunakan data cache/fallback", file=sys.stderr)
 
